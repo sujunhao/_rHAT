@@ -1,5 +1,6 @@
 all: rHAT
 
 rHAT: 
-	g++ create_RHT.cpp -o a.out
+	g++ run_rHAT.cpp -o run_rHAT
+	g++ create_RHT.cpp -o create_RHT
 

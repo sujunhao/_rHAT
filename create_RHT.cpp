@@ -8,7 +8,7 @@
 #include "RHT.h"
 using namespace std;
 
-#define PRINT_WINDOW_INDEX
+// #define PRINT_WINDOW_INDEX
 
 int main(int argc, char** argv) 
 {
@@ -41,6 +41,8 @@ int main(int argc, char** argv)
     FILE *pout;
     pout = fopen("out_RHT", "w");
     
+    // ofstream pout;
+    // pout.open("out_RHT");
 
     string dna_name, dna_s, dna_w;
 
@@ -121,12 +123,17 @@ int main(int argc, char** argv)
             outf << dna_w.substr(dna_w.size() - dna_ref_b % WindowListLen - WindowListLen / 2, dna_ref_b % WindowListLen + WindowListLen / 2) << " " <<  2 * ((dna_ref_b - WindowListLen / 2 ) / WindowListLen) + 1<< "| \n";
             outf << dna_w.substr(dna_w.size() - dna_ref_b % WindowListLen, dna_ref_b % WindowListLen) << " " <<  (dna_ref_b / WindowListLen) * 2 << "| \n";
         }
+
+        outf.close();
     #endif
 
 
-    
-
     db.write_hash_out(pout);
+    
+    fclose(pout);
+    inf.close();
+
+    printf("Time used = %.2f\n",  (double)clock() / CLOCKS_PER_SEC);
 
     return 0;
     

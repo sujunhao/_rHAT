@@ -3,6 +3,7 @@
 #include <fstream>
 #include <bitset>
 #include <cstring>
+#include <sstream>
 #include <cstdlib>
 #include <cstdio>
 #include <vector>
@@ -124,7 +125,39 @@ class dna_bitset
 
 
         //write hash table to fstream
-        void write_hash_out(FILE* oo)
+        void write_hash_out(std::ofstream &oo)
+        {
+            string ts;
+            for (uint32_t i=0; i < m_len; ++i) 
+            {
+                ts = to_string(i);
+                if (m_data[i].size() > 0)
+                {
+                    //int string
+                    oo << ts;
+                    // fprintf(oo, "%s", ts.c_str());
+
+                    //in bitnum style
+                    // oo << to_bit(ts);
+
+                    for (size_t j=0; j < m_data[i].size(); ++j)
+                    {
+                        //write the hash table to file, the pointer string, the windowList index and occure time
+                        // if (m_data[i][j].second  > 1)
+                        // fprintf(oo, " %d %d", m_data[i][j].first, m_data[i][j].second);
+                        // oo << " " << m_data[i][j].first <<  " " << m_data[i][j].second;
+
+                        //the pointer string, the windowList index
+                        // fprintf(oo, " %d", m_data[i][j].first);
+                        oo << " " << m_data[i][j].first;
+                    }
+                    // fprintf(oo, "\n");
+                    oo << std::endl;  
+               }
+            }
+        }
+
+        void write_hash_out(FILE *oo)
         {
             string ts;
             for (uint32_t i=0; i < m_len; ++i) 
@@ -142,6 +175,8 @@ class dna_bitset
                     for (size_t j=0; j < m_data[i].size(); ++j)
                     {
                         //write the hash table to file, the pointer string, the windowList index and occure time
+                        // if (m_data[i][j].second  > 1)
+                        // fprintf(oo, " %d %d", m_data[i][j].first, m_data[i][j].second);
                         // oo << " " << m_data[i][j].first <<  " " << m_data[i][j].second;
 
                         //the pointer string, the windowList index
@@ -154,6 +189,22 @@ class dna_bitset
             }
         }
 
+
+        void read_hash_in(std::ifstream &ii)
+        {
+            string ss, line;
+            uint32_t n, t;
+            while (getline(ii, line))
+            {
+                std::istringstream ll(line);
+                ll >> ss;
+                n = to_bit(ss);
+                while (ll >> t)
+                {
+                    m_data[n].push_back(std::make_pair(t, 1));
+                }
+            }
+        }
     private:
         std::vector<std::pair<uint32_t, uint32_t> >* m_data;
         //the table list size  
@@ -162,34 +213,3 @@ class dna_bitset
         size_t bit_len;
 };
 
-
-
-// class window_list
-// {
-//     public:
-//         window_list() { }
-//         window_list () 
-//         {
-//             m_size = 0;
-//             m_data = new std::vector<std::string>;
-//         }
-
-//         ~window_list ()
-//         {
-//             delete [] m_data;
-//         }
-
-//         void add_window(string s)
-//         {
-//             m_data->push_back(s);
-//             ++m_size;
-//         }
-
-//         void link_window(string s)
-//         {
-
-//         }
-//     private:
-//         uint64_t m_size;
-//         std::vector<std::string>* m_data;
-// };
