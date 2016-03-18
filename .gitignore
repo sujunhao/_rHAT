@@ -1,0 +1,7 @@
+*~
+*.out
+bio_project/
+*.gz
+*.fna
+out*
+E_coli/
