@@ -9,4 +9,6 @@ E_coli/
 *.fastq.*
 *.o
 *.gch
-
+*.fa
+*.tar
+*.swap

@@ -133,7 +133,7 @@ int main(int argc, char** argv)
         {
             ++wc_num;
             QWin_C.push(wc);
-            if (wc_num> wc_full)
+            if (wc_num > wc_full)
             {
                 --wc_num;
                 QWin_C.pop();
@@ -151,6 +151,18 @@ int main(int argc, char** argv)
             Qwin.push(w1);
             --num_w;
         }
+
+        if (Qwin.empty())
+        {
+            ++wc_num;
+            QWin_C.push(wc);
+            if (wc_num > wc_full)
+            {
+                --wc_num;
+                QWin_C.pop();
+            }
+        }
+        
     }
 
     while (!Qwin.empty())
@@ -166,7 +178,7 @@ int main(int argc, char** argv)
         {
             ++wc_num;
             QWin_C.push(wc);
-            if (wc_num> wc_full)
+            if (wc_num > wc_full)
             {
                 --wc_num;
                 QWin_C.pop();
@@ -177,10 +189,22 @@ int main(int argc, char** argv)
         }
 
         Qwin.pop();
+        if (Qwin.empty())
+        {
+            ++wc_num;
+            QWin_C.push(wc);
+            if (wc_num > wc_full)
+            {
+                --wc_num;
+                QWin_C.pop();
+            }
+        }
     }
 
     //the top 5 hit window index store in hit_w
-    uint32_t k=wc_full;
+    uint32_t wcfull = min(wc_full, wc_num), k=wcfull;
+
+    cout << wcfull << " " << k << endl;
     while (!QWin_C.empty())
     {
         out << QWin_C.top().count << " " << QWin_C.top().index_of_W << endl;
@@ -189,7 +213,7 @@ int main(int argc, char** argv)
 
     }
 
-    for (uint32_t i=0; i<wc_full; i++)
+    for (uint32_t i=0; i<wcfull; i++)
         out << hit_w[i] << endl;
 
 

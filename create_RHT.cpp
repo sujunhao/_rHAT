@@ -8,7 +8,7 @@
 #include "RHT.h"
 using namespace std;
 
-// #define PRINT_WINDOW_INDEX
+#define PRINT_WINDOW_INDEX
 
 int main(int argc, char** argv) 
 {
@@ -35,7 +35,7 @@ int main(int argc, char** argv)
     std::cout << PointerListLen << " " << WindowListLen << "\n";
 
     ifstream inf;
-    inf.open("GCF_000005845.2_ASM584v2_genomic.fna");
+    inf.open("E.coli.fa");
     
 
     FILE *pout;
