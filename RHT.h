@@ -104,6 +104,16 @@ class dna_bitset
             delete [] m_data;
         }
 
+        size_t get_count(uint32_t n)
+        {
+            return m_data[n].size();
+        }
+
+        uint32_t get_window(uint32_t n, size_t v)
+        {
+            return m_data[n][v-1].first;
+        }
+
         void link_string(string s, uint32_t dna_ref_index)
         {
             uint32_t n = to_bit(s), v = m_data[n].size();
