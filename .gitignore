@@ -6,3 +6,6 @@ bio_project/
 out*
 E_coli/
 *.7z
+*-sim
+*.gch
+
