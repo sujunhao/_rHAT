@@ -93,13 +93,33 @@ int main(int argc, char** argv)
     WINDOW_CNT wc, wc1;
     num_w = 0;
 
+
+    //splite the read center sequence
+    uint32_t read_len = dna_read.size();
+    uint32_t len_up_stream = 0, len_down_stream = 0;
+    uint32_t theLen = WindowListLen / 2;
+    if (read_len * 2 > WindowListLen)
+    {
+        len_up_stream = read_len / 2 - theLen / 2;
+        len_down_stream = read_len - len_up_stream - theLen;
+    }
+    else
+    {   
+        len_up_stream = 0;
+        len_down_stream = 0;
+        theLen = read_len;
+    }
+
+    string center_read = dna_read.substr(len_up_stream, theLen);
+    out << center_read << endl;
+
     index_r = 0;
-    while (index_r < dna_read.size()) 
+    while (index_r < center_read.size()) 
     {
         ++index_r;
         if (index_r >= PointerListLen)
         {
-            L_read[index_r - PointerListLen] = to_bit(dna_read.substr(index_r - PointerListLen, index_r));
+            L_read[index_r - PointerListLen] = to_bit(center_read.substr(index_r - PointerListLen, index_r));
             if (db.get_count(L_read[index_r - PointerListLen]) > 0)
             {
                 w.index_of_L = index_r - PointerListLen;
@@ -204,7 +224,7 @@ int main(int argc, char** argv)
     //the top 5 hit window index store in hit_w
     uint32_t wcfull = min(wc_full, wc_num), k=wcfull;
 
-    cout << wcfull << " " << k << endl;
+    // cout << wcfull << " " << k << endl;
     while (!QWin_C.empty())
     {
         out << QWin_C.top().count << " " << QWin_C.top().index_of_W << endl;
@@ -215,6 +235,10 @@ int main(int argc, char** argv)
 
     for (uint32_t i=0; i<wcfull; i++)
         out << hit_w[i] << endl;
+
+
+
+
 
 
     /*for (size_t i=0; i <= index_r - PointerListLen; ++i)
