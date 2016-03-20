@@ -53,6 +53,11 @@ typedef struct to_sort
     }
 }TO_SORT;
 
+typedef struct read_hash
+{ 
+    vector<size_t> index;
+}READ_HASH;
+
 
 bool cp_window(WINDOW &a, const window& w) 
 {
@@ -100,8 +105,6 @@ int main(int argc, char** argv)
     uint32_t L_read[WindowListLen];
     uint32_t last_W_index;
 
-    inRead >> dna_read;
-    //dna_read is the read length = L/2
 
     dna_bitset db(PointerListLen);
     db.read_hash_in(inRHT);
@@ -114,6 +117,23 @@ int main(int argc, char** argv)
     WINDOW_CNT wc, wc1;
     num_w = 0;
 
+    inRead >> dna_read;
+    //create_read_hash_table
+    const size_t readListlen = 11;
+    size_t read_hash_len = 1 << (2 * readListlen);
+    vector<READ_HASH> read_h(read_hash_len);
+
+    index_r = 0;
+    while (index_r < dna_read.size())
+    {
+        ++index_r;
+        if (index_r >= readListlen)
+        {
+            read_h[to_bit(dna_read.substr(index_r - readListlen, readListlen))].index.push_back(index_r - readListlen);
+            // out << dna_read.substr(index_r - readListlen, readListlen) << " " << to_string(to_bit(dna_read.substr(index_r - readListlen, readListlen))) << " " << index_r - readListlen << endl;
+        }
+    }
+    //inside the read_h store vector if some k_mer string appear in read
 
     //splite the read center sequence
     uint32_t read_len = dna_read.size();
