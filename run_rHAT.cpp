@@ -1,6 +1,7 @@
 #include <iostream>
 #include <fstream>
 #include <cstdio>
+#include <algorithm>
 #include <string>
 #include <queue>
 #include <unistd.h>
@@ -33,6 +34,25 @@ typedef struct window_cnt {
 }WINDOW_CNT;
 
 
+typedef struct window_string {
+    uint32_t index_of_W;
+    size_t count;
+    string s;
+    uint64_t index_up;
+    size_t len;
+}WINDOW_STRING;
+
+typedef struct to_sort 
+{ 
+    uint32_t w;
+    size_t index;  
+    bool operator<(const to_sort& b) const
+    {
+        return w < b.w;
+    }
+}TO_SORT;
+
+
 bool cp_window(WINDOW &a, const window& w) 
 {
     a.index_of_L = w.index_of_L;
@@ -63,7 +83,7 @@ int main(int argc, char** argv)
     std::cout << PointerListLen << " " << WindowListLen << "\n";
 
     ifstream inf, inRead, inRHT;
-    inf.open("GCF_000005845.2_ASM584v2_genomic.fna");
+    inf.open("E.coli.fa");
     inRHT.open("out_RHT");
     inRead.open("dna_read");
 
@@ -225,16 +245,74 @@ int main(int argc, char** argv)
     uint32_t wcfull = min(wc_full, wc_num), k=wcfull;
 
     // cout << wcfull << " " << k << endl;
+    WINDOW_STRING ws[wcfull];
+
+
+    //ws store the most high hit window string, hit time count, etc
     while (!QWin_C.empty())
     {
         out << QWin_C.top().count << " " << QWin_C.top().index_of_W << endl;
-        hit_w[--k] = QWin_C.top().index_of_W;
+        // hit_w[--k] = QWin_C.top().index_of_W;
+        ws[--k].count = QWin_C.top().count;
+        ws[k].index_of_W = QWin_C.top().index_of_W;
         QWin_C.pop();
-
     }
 
-    for (uint32_t i=0; i<wcfull; i++)
-        out << hit_w[i] << endl;
+
+
+    //ws already have index_w and count info., this function is to find ws array string, index_up and len
+    TO_SORT K[wcfull];
+    for (size_t i=0; i < wcfull; ++i)
+    {
+            K[i].w = ws[i].index_of_W * (WindowListLen / 2) > len_up_stream ? ws[i].index_of_W * (WindowListLen / 2) - len_up_stream : 0;
+            K[i].index = i;
+    }
+    sort(K, K+wcfull);
+    // for (size_t i=0; i < wcfull; ++i)
+    // {
+    //     std::cout << K[i].w << " " << K[i].index << endl;
+    // }
+    
+    string dna_name, dna_s, dna_w;
+
+    uint64_t dna_ref_b = 0;
+    size_t  index_s = 0, ix_window = 0, thegetwindowlen = len_up_stream + WindowListLen + len_down_stream;
+
+    getline(inf, dna_name);
+    std::cout << dna_name  << endl;
+
+// SCANF_WINDOW
+    while (inf >> dna_s)
+    {
+        index_s = 0;
+        while (index_s < dna_s.size()) 
+        {
+            ++dna_ref_b;
+            dna_w.append(dna_s, index_s++, 1);
+            while (ix_window < wcfull && K[ix_window].w + thegetwindowlen == dna_ref_b)
+            {
+                ws[K[ix_window].index].s = dna_w.substr(dna_w.size() - thegetwindowlen, thegetwindowlen);
+                ws[K[ix_window].index].len = thegetwindowlen;
+                ws[K[ix_window].index].index_up = K[ix_window].w;
+                ++ix_window;
+            }
+        }
+
+        if (ix_window >= wcfull) break;
+        if (dna_w.size() > 2 * thegetwindowlen) dna_w = dna_w.substr(dna_w.size()-thegetwindowlen, thegetwindowlen);
+    }
+
+
+    // out << "index_W s count  index_up len\n";
+    // for (uint32_t i=0; i<wcfull; i++)
+    // {
+    //     out << ws[i].index_of_W \
+    //     << " " << ws[i].s \
+    //     << " " << ws[i].count \
+    //     << " " << ws[i].index_up \
+    //     << " " << ws[i].len \
+    //     << endl;
+    // }
 
 
 
