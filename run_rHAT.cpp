@@ -9,6 +9,7 @@
 #include "RHT.h"
 using namespace std;
 
+#define PRINTLOG
 
 typedef struct window {
     uint32_t index_of_W;
@@ -131,7 +132,10 @@ int main(int argc, char** argv)
     }
 
     string center_read = dna_read.substr(len_up_stream, theLen);
+
+    #ifdef PRINTLOG
     out << center_read << endl;
+    #endif
 
     index_r = 0;
     while (index_r < center_read.size()) 
@@ -163,7 +167,9 @@ int main(int argc, char** argv)
     while (num_w || Qwin.empty())
     {
         cp_window(w, Qwin.top());
+        #ifdef PRINTLOG
         out << w.index_of_L << " " << to_string(L_read[w.index_of_L]) << " " << w.count_L << " " << w.index_of_W << endl;
+        #endif
 
         if (last_W_index == w.index_of_W)
         {
@@ -208,7 +214,9 @@ int main(int argc, char** argv)
     while (!Qwin.empty())
     {
         cp_window(w, Qwin.top());
+        #ifdef PRINTLOG
         out << w.index_of_L << " " << to_string(L_read[w.index_of_L]) << " " << w.count_L << " " << w.index_of_W << endl;
+        #endif
 
         if (last_W_index == w.index_of_W)
         {
@@ -251,7 +259,9 @@ int main(int argc, char** argv)
     //ws store the most high hit window string, hit time count, etc
     while (!QWin_C.empty())
     {
+        #ifdef PRINTLOG
         out << QWin_C.top().count << " " << QWin_C.top().index_of_W << endl;
+        #endif
         // hit_w[--k] = QWin_C.top().index_of_W;
         ws[--k].count = QWin_C.top().count;
         ws[k].index_of_W = QWin_C.top().index_of_W;
@@ -303,16 +313,18 @@ int main(int argc, char** argv)
     }
 
 
-    // out << "index_W s count  index_up len\n";
-    // for (uint32_t i=0; i<wcfull; i++)
-    // {
-    //     out << ws[i].index_of_W \
-    //     << " " << ws[i].s \
-    //     << " " << ws[i].count \
-    //     << " " << ws[i].index_up \
-    //     << " " << ws[i].len \
-    //     << endl;
-    // }
+    #ifdef PRINTLOG
+    out << "index_W s count  index_up len\n";
+    for (uint32_t i=0; i<wcfull; i++)
+    {
+        out << ws[i].index_of_W \
+        << " " << ws[i].s \
+        << " " << ws[i].count \
+        << " " << ws[i].index_up \
+        << " " << ws[i].len \
+        << endl;
+    }
+    #endif
 
 
 
