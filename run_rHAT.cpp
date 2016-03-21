@@ -66,8 +66,50 @@ bool cp_window(WINDOW &a, const window& w)
     a.count_L = w.count_L;
 }
 
-int main(int argc, char** argv) 
+
+typedef struct match_point
 {
+    size_t len;
+    uint64_t index_of_W;
+    uint32_t index_of_R;
+    vector<size_t> U;
+}MATCH_POINT;
+
+vector<uint32_t> dp;
+vector<bool> vis;
+
+uint32_t find_path_mpv(vector<MATCH_POINT> mpv, size_t v)
+{
+    if (vis[v]) return dp[v];
+    uint32_t value = 0;
+    for (size_t i = 0; i < mpv[v].U.size(); ++i)
+    {
+        if (vis[mpv[v].U[i]]) value = max(value, dp[mpv[v].U[i]] + (uint32_t)mpv[v].len);
+        else
+        {
+            value = max(value, find_path_mpv(mpv, mpv[v].U[i]) + (uint32_t)mpv[v].len);
+        }
+    }
+    vis[v] = true;
+    // std::cout << v << " " << value << endl;
+    return dp[v] = value;
+}
+
+void get_path_mpv(vector<MATCH_POINT> mpv, size_t v, vector<size_t>& out_path)
+{
+    for (size_t i = 0; i < mpv[v].U.size(); ++i)
+    {
+        if (dp[mpv[v].U[i]] + (uint32_t)mpv[v].len == dp[v])
+        {
+            get_path_mpv(mpv, mpv[v].U[i], out_path);
+            out_path.push_back(v);
+            return;
+        }
+    }
+}
+
+int main(int argc, char** argv) 
+{ 
 	int c;
     opterr = 0;
     while ((c = getopt (argc, argv, "p:w:")) != -1) 
@@ -130,7 +172,7 @@ int main(int argc, char** argv)
         if (index_r >= readListlen)
         {
             read_h[to_bit(dna_read.substr(index_r - readListlen, readListlen))].index.push_back(index_r - readListlen);
-            // out << dna_read.substr(index_r - readListlen, readListlen) << " " << to_string(to_bit(dna_read.substr(index_r - readListlen, readListlen))) << " " << index_r - readListlen << endl;
+            out << dna_read.substr(index_r - readListlen, readListlen) << " " << to_string(to_bit(dna_read.substr(index_r - readListlen, readListlen))) << " " << index_r - readListlen << endl;
         }
     }
     //inside the read_h store vector if some k_mer string appear in read
@@ -346,6 +388,111 @@ int main(int argc, char** argv)
     }
     #endif
 
+    for (uint32_t o = 0; o < wcfull; ++o)
+    {
+        if (o>0) break;
+        string ss = ws[o].s;
+        size_t count = ws[o].count, window_len = ws[o].len;
+        uint64_t index_up = ws[o].index_up;
+        uint32_t index_w = ws[o].index_of_W;
+        vector<MATCH_POINT> mpv;
+        MATCH_POINT mp_tmp;
+
+        for (size_t i = 0; i < ss.size(); ++i)
+        {
+            if (i >= readListlen)
+            {
+                if (read_h[to_bit(ss.substr(i - readListlen, readListlen))].index.size() > 0)
+                {
+                    size_t k = 0;
+                    vector<size_t> vv;
+                    vv = read_h[to_bit(ss.substr(i - readListlen, readListlen))].index;
+                    while (k < vv.size())
+                    {
+                        size_t match_len = readListlen;
+                        for (size_t j = 0; i + j < ss.size(); ++j)
+                        {
+                            if (dna_read[vv[k] + readListlen + j] == ss[i + j])
+                                ++match_len;
+                            else 
+                                break;
+                        }
+                        mp_tmp.len = match_len;
+                        mp_tmp.index_of_W = i - readListlen;
+                        mp_tmp.index_of_R = vv[k];
+                        out << mp_tmp.len \
+                        << " " << mp_tmp.index_of_W \
+                        << " " <<  ss.substr(i - readListlen, mp_tmp.len)\
+                        << " " << mp_tmp.index_of_R \
+                        << endl;
+                        mpv.push_back(mp_tmp);
+                        ++k;
+                    }
+                }
+            }
+        }
+
+        //init V_start, V_end
+        MATCH_POINT Vs, Ve;
+        Vs.len = Ve.len = 0;
+        Vs.index_of_R = Vs.index_of_W = 0;
+        Ve.index_of_W = window_len;
+        Ve.index_of_R = dna_read.size();
+        mpv.push_back(Vs);
+        mpv.push_back(Ve);
+
+        out << mpv.size() << " " << Ve.index_of_W << " " << Ve.index_of_R << endl << endl;
+        const uint32_t t_wait = 11000;
+        for (size_t i = 0; i < mpv.size(); ++i)
+        {
+            for (size_t j = 0; j < mpv.size(); ++j)
+            {
+                if (i != j)
+                if(mpv[i].index_of_R + mpv[i].len <= mpv[j].index_of_R && mpv[i].index_of_R + mpv[i].len + t_wait>= mpv[j].index_of_R  && mpv[i].index_of_W + mpv[i].len <= mpv[j].index_of_W)
+                {
+                    mpv[j].U.push_back(i);
+                    out << " i i_r i_w" << " " << i \
+                    << " | " << mpv[i].index_of_R  \
+                    << " | " << mpv[i].index_of_W  \
+                    << " | " << j \
+                    << " | " << mpv[j].index_of_R  \
+                    << " | " << mpv[j].index_of_W  \
+                    << " | " << mpv[i].len  \
+                    << endl;
+                }
+            }
+        }
+
+        dp.clear();
+        vis.clear();
+        for (size_t i = 0; i < mpv.size(); ++i) 
+        {
+            dp.push_back(0);
+            vis.push_back(false);
+        }
+        find_path_mpv(mpv, mpv.size() - 1);
+        for (size_t i = 0; i < mpv.size(); ++i) 
+        {
+            out << i << " " << dp[i] << endl;
+        }
+
+        vector<size_t> out_path;
+        get_path_mpv(mpv, mpv.size() - 1, out_path);
+        for (size_t i = 0; i < out_path.size(); ++i)
+        {
+            size_t z = out_path[i];
+            out << z
+            << mpv[z].len \
+            << endl \
+            << mpv[z].index_of_R \
+            << " " << dna_read.substr(mpv[z].index_of_R, mpv[z].len) 
+            << endl \
+            << mpv[z].index_of_W \
+            << " " << ss.substr(mpv[z].index_of_W, mpv[z].len) \
+            << endl;
+        }
+
+    }
 
 
 
