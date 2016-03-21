@@ -442,7 +442,7 @@ int main(int argc, char** argv)
         mpv.push_back(Ve);
 
         out << mpv.size() << " " << Ve.index_of_W << " " << Ve.index_of_R << endl << endl;
-        const uint32_t t_wait = 11000;
+        const uint32_t t_wait = 22;
         for (size_t i = 0; i < mpv.size(); ++i)
         {
             for (size_t j = 0; j < mpv.size(); ++j)
