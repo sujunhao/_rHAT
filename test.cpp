@@ -10,54 +10,50 @@
 // #include "global_alignment.h"
 using namespace std;
 
-const double cy = 3, cn = -1, cg = -2;
-const double INF = 0xFFFFFFFF;
 
-class alignment
+class ALIGNMENT
 {
 	public:
-		alignment()
+		ALIGNMENT()
 		{
+			cy = 3; cn = -1; cg = -2;
+			INF = 0xFFFFFFFF;
 		}
-		~alignment()
+		~ALIGNMENT()
 		{
+
 		}
 
-
-		void alignment_semi(string s11, string s22, string &s3, string &s4)
+		void get_local(string s11, string s22, string &s3, string &s4)
 		{
-
 			s1 = s11;
 			s2 = s22;
 			// cout << s1 << endl << s2 << endl;
-			set_semi_dp();
+			alignment_state = LOCAL;
+			set_dp();
 			v.clear();
 			size_t a = s1.size(), b = s2.size();
-			double k = dp[a-1][b-1];
-			for (size_t i = 0; i < s1.size(); ++i)
+			double k = dp[a][b];
+			for (size_t i = 0; i <= s1.size(); ++i)
 			{
-				if (dp[i][s2.size() - 1] > k) 
+				for (size_t j = 0; j<=s2.size(); ++j)
 				{
-					k = dp[i][s2.size() - 1];
-					a = i + 1;
-					b = s2.size();
+					if (dp[i][j] > k)
+					{
+						k = dp[i][j];
+						a = i;
+						b = j;
+					}
 				}
 			}
-			for (size_t i = 0; i < s2.size(); ++i)
-			{
-				if (dp[s1.size() - 1][i] > k) 
-				{
-					k = dp[s1.size() - 1][i];
-					a = s1.size();
-					b = i + 1;
-				}
-			}
-			get_semi_dp(a, b, v);
+			cout << endl << k << endl;
+
+			get_dp(a, b, v);
 
 			s_1.clear();
 			s_2.clear();
 
-			for (size_t i=0, m=0, n=0; i<v.size(); ++i) 
+			for (size_t i=0, m=L[0], n=L[1]; i<v.size(); ++i) 
 			{
 				switch(v[i])
 				{
@@ -82,19 +78,81 @@ class alignment
 			cout << endl << s_1 << endl << s_2 << endl;
 		}
 
-		void alignment_g(string s11, string s22, string &s3, string &s4)
+		void get_semi(string s11, string s22, string &s3, string &s4)
 		{
+
 			s1 = s11;
 			s2 = s22;
 			// cout << s1 << endl << s2 << endl;
-			set_g_dp();
+			alignment_state = SEMI;
+			set_dp();
 			v.clear();
-			get_g_dp(s1.size(), s2.size(), v);
+			size_t a = s1.size(), b = s2.size();
+			double k = dp[a][b];
+			for (size_t i = 0; i < s1.size(); ++i)
+			{
+				if (dp[i][s2.size()] > k) 
+				{
+					k = dp[i][s2.size()];
+					a = i;
+					b = s2.size();
+				}
+			}
+			for (size_t i = 0; i < s2.size(); ++i)
+			{
+				if (dp[s1.size()][i] > k) 
+				{
+					k = dp[s1.size()][i];
+					a = s1.size();
+					b = i;
+				}
+			}
+			cout << endl << k << endl;
+			get_dp(a, b, v);
 
 			s_1.clear();
 			s_2.clear();
 
-			for (size_t i=0, m=0, n=0; i<v.size(); ++i) 
+			for (size_t i=0, m=L[0], n=L[1]; i<v.size(); ++i) 
+			{
+				switch(v[i])
+				{
+					case 0:
+						s_1.append(s1, m++, 1);
+						s_2.append(s2, n++, 1);
+						break;
+					case 1:
+						s_1.append(s1, m++, 1);
+						s_2.append("_");
+						break;
+					case 2:
+						s_1.append("_");
+						s_2.append(s2, n++, 1);
+						break;
+
+				}
+				printf("%d ", v[i]);
+			}
+			s3 = s_1;
+			s4 = s_2;
+			cout << endl << s_1 << endl << s_2 << endl;
+		}
+
+		void get_global(string s11, string s22, string &s3, string &s4)
+		{
+			s1 = s11;
+			s2 = s22;
+			// cout << s1 << endl << s2 << endl;
+			alignment_state = GLOBAL;
+			set_dp();
+			v.clear();
+			cout << endl << dp[s1.size()][s2.size()] << endl;
+			get_dp(s1.size(), s2.size(), v);
+
+			s_1.clear();
+			s_2.clear();
+
+			for (size_t i=L[0], m=L[1], n=0; i<v.size(); ++i) 
 			{
 				switch(v[i])
 				{
@@ -119,7 +177,7 @@ class alignment
 			cout << endl << s_1 << endl << s_2 << endl;
 		}
 		
-		void set_semi_dp()
+		void set_dp()
 		{
 			double tmp = 0.0;
 			for (size_t i = 0; i <= s1.size(); ++i)
@@ -133,12 +191,20 @@ class alignment
 				for (size_t j = 0; j <= s2.size(); ++j)
 				{
 					while (dp[i].size() <= j) dp[i].push_back(-INF);
-					if (i == 0 || j == 0)
+					if (i==0 && j==0) dp[i][j] = 0;
+					if (alignment_state == GLOBAL)
+					{
+						//
+					}
+					else if (alignment_state == SEMI)
+					{
+						if (i == 0) dp[i][j] = 0;
+						if (j == 0) dp[i][j] = 0;
+					}
+					else
 					{
 						dp[i][j] = 0;
-						continue;
 					}
-					if (i + j == 0)	dp[0][0] = 0.0;
 					tmp = dp[i][j];
 					if (i) tmp = std::max(tmp, dp[i-1][j] + cg);
 					if (j) tmp = std::max(tmp, dp[i][j-1] + cg);
@@ -150,105 +216,61 @@ class alignment
 			}
 		}
 
-		void set_g_dp()
+		void get_dp(size_t i, size_t j, vector<int> &v)
 		{
-			double tmp = 0.0;
-			for (size_t i = 0; i <= s1.size(); ++i)
+			if (alignment_state == GLOBAL)
 			{
-				while (dp.size() <= i)
+				if (i==0 && j==0)
 				{
-					vector<double> v;
-					v.clear();
-					dp.push_back(v);
+					L[0] = i;
+					L[1] = j;
+					return;
 				}
-				for (size_t j = 0; j <= s2.size(); ++j)
-				{
-					while (dp[i].size() <= j) dp[i].push_back(-INF);
-					if (i + j == 0)	dp[0][0] = 0.0;
-					tmp = dp[i][j];
-					if (i) tmp = std::max(tmp, dp[i-1][j] + cg);
-					if (j) tmp = std::max(tmp, dp[i][j-1] + cg);
-					if (i > 0 && j > 0)	tmp = std::max(tmp, dp[i-1][j-1] + ((s1[i-1]==s2[j-1]) ? cy : cn));
-					dp[i][j] = tmp;
-					printf("%3.0lf ", dp[i][j]);
-				}
-				printf("\n");
 			}
-		}
+			else if (alignment_state == SEMI)
+			{
+				if (i == 0  || j ==0)
+				{
+					L[0] = i;
+					L[1] = j;
+					return;
+				}
+			}
+			else
+			{
+				if (dp[i][j] == 0) 
+				{
+					L[0] = i;
+					L[1] = j;
+					return;
+				}
+			}
 
-		void get_semi_dp(size_t i, size_t j, vector<int> &v)
-		{
 			if (i && j && dp[i][j] == (dp[i-1][j-1] + ((s1[i-1]==s2[j-1]) ? cy : cn))) 
 			{
-				get_semi_dp(i-1, j-1, v);
+				get_dp(i-1, j-1, v);
 				v.push_back(0);
 				return;
 			}
 			if (j && dp[i][j] == dp[i][j-1] + cg)
 			{
-				get_semi_dp(i, j-1, v);
+				get_dp(i, j-1, v);
 				v.push_back(2);
 				return;
 			}
 			if (i && dp[i][j] == dp[i-1][j] + cg)
 			{
-				get_semi_dp(i-1, j, v);
+				get_dp(i-1, j, v);
 				v.push_back(1);
 				return;
 			}
-			// if (i) 
-			// {
-			// 	get_dp(i-1, j, v);
-			// 	v.push_back(1);
-			// 	return;
-			// }
-			// if (j) 
-			// {
-			// 	get_dp(i, j-1, v);
-			// 	v.push_back(2);
-			// 	return;
-			// }
-			// v.push_back(0);
-			return;
 		}
 
-		void get_g_dp(size_t i, size_t j, vector<int> &v)
-		{
-			if (i && j && dp[i][j] == (dp[i-1][j-1] + ((s1[i-1]==s2[j-1]) ? cy : cn))) 
-			{
-				get_g_dp(i-1, j-1, v);
-				v.push_back(0);
-				return;
-			}
-			if (j && dp[i][j] == dp[i][j-1] + cg)
-			{
-				get_g_dp(i, j-1, v);
-				v.push_back(2);
-				return;
-			}
-			if (i && dp[i][j] == dp[i-1][j] + cg)
-			{
-				get_g_dp(i-1, j, v);
-				v.push_back(1);
-				return;
-			}
-			if (i) 
-			{
-				get_g_dp(i-1, j, v);
-				v.push_back(1);
-				return;
-			}
-			if (j) 
-			{
-				get_g_dp(i, j-1, v);
-				v.push_back(2);
-				return;
-			}
-			// v.push_back(0);
-			return;
-		}
 	private:
+		double cy, cn, cg, INF;
+		size_t L[2];
 		vector< vector<double> > dp;
+		enum{LOCAL, GLOBAL, SEMI} alignment_state;
 		vector<int> v;
 		string s1, s2, s_1, s_2;
 };
@@ -261,12 +283,13 @@ class alignment
 int main()
 {
 
-	string s1 = "AAAAAAAAAAAAAAAATCGGG", s2 = "GCATCGGGGGGG";
+	string s1 = "", s2 = "";
 	
 	string s3, s4;
-	alignment ga;
-	ga.alignment_g(s1, s2, s3, s4);
-	ga.alignment_semi(s1, s2, s3, s4);
+	ALIGNMENT ga;
+	ga.get_global(s1, s2, s3, s4);
+	ga.get_semi(s1, s2, s3, s4);
+	ga.get_local(s1, s2, s3, s4);
 	// cout << s1 << endl << s2 << endl;
 	// cout << endl <<s3 << endl << s4 << endl;
 	// Global_Alignment(s1, s2);
