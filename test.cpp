@@ -4,34 +4,58 @@
 #include <algorithm>
 #include <string>
 #include <queue>
+#include <map>
 #include <unistd.h>
 #include <stdint.h>
 // #include "global_alignment.h"
 using namespace std;
 
+const double cy = 3, cn = -1, cg = -2;
+const double INF = 0xFFFFFFFF;
 
-class global_alignment
+class alignment
 {
 	public:
-		global_alignment()
+		alignment()
 		{
 		}
-		~global_alignment()
+		~alignment()
 		{
-			
 		}
-		void set(string s11, string s22, string &s3, string &s4)
+
+
+		void alignment_semi(string s11, string s22, string &s3, string &s4)
 		{
+
 			s1 = s11;
 			s2 = s22;
-			cout << s1 << endl << s2 << endl;
-			set_dp();
+			// cout << s1 << endl << s2 << endl;
+			set_semi_dp();
 			v.clear();
-			get_dp(s1.size(), s2.size(), v);
+			size_t a = s1.size(), b = s2.size();
+			double k = dp[a-1][b-1];
+			for (size_t i = 0; i < s1.size(); ++i)
+			{
+				if (dp[i][s2.size() - 1] > k) 
+				{
+					k = dp[i][s2.size() - 1];
+					a = i + 1;
+					b = s2.size();
+				}
+			}
+			for (size_t i = 0; i < s2.size(); ++i)
+			{
+				if (dp[s1.size() - 1][i] > k) 
+				{
+					k = dp[s1.size() - 1][i];
+					a = s1.size();
+					b = i + 1;
+				}
+			}
+			get_semi_dp(a, b, v);
 
 			s_1.clear();
 			s_2.clear();
-
 
 			for (size_t i=0, m=0, n=0; i<v.size(); ++i) 
 			{
@@ -51,21 +75,21 @@ class global_alignment
 						break;
 
 				}
-				// printf("%d ", v[i]);
+				printf("%d ", v[i]);
 			}
 			s3 = s_1;
 			s4 = s_2;
-			// cout << endl << s_1 << endl << s_2 << endl;
+			cout << endl << s_1 << endl << s_2 << endl;
 		}
 
-		void set(string s11, string s22)
+		void alignment_g(string s11, string s22, string &s3, string &s4)
 		{
 			s1 = s11;
 			s2 = s22;
-			cout << s1 << endl << s2 << endl;
-			set_dp();
+			// cout << s1 << endl << s2 << endl;
+			set_g_dp();
 			v.clear();
-			get_dp(s1.size(), s2.size(), v);
+			get_g_dp(s1.size(), s2.size(), v);
 
 			s_1.clear();
 			s_2.clear();
@@ -88,94 +112,163 @@ class global_alignment
 						break;
 
 				}
-				// printf("%d ", v[i]);
+				printf("%d ", v[i]);
 			}
+			s3 = s_1;
+			s4 = s_2;
 			cout << endl << s_1 << endl << s_2 << endl;
 		}
-
-
-		void set_dp()
+		
+		void set_semi_dp()
 		{
-			int32_t tmp = 0;
-
+			double tmp = 0.0;
 			for (size_t i = 0; i <= s1.size(); ++i)
 			{
 				while (dp.size() <= i)
 				{
-					vector<int32_t> v;
+					vector<double> v;
 					v.clear();
 					dp.push_back(v);
 				}
 				for (size_t j = 0; j <= s2.size(); ++j)
 				{
-					tmp = 0;
-					while (dp[i].size() <= j) dp[i].push_back(0);
-					if (i) tmp = std::max(tmp, dp[i-1][j]);
-					if (j) tmp = std::max(tmp, dp[i][j-1]);
-					if (i > 0 && j > 0)	tmp = std::max(tmp, dp[i-1][j-1] + (s1[i-1] == s2[j-1]));
+					while (dp[i].size() <= j) dp[i].push_back(-INF);
+					if (i == 0 || j == 0)
+					{
+						dp[i][j] = 0;
+						continue;
+					}
+					if (i + j == 0)	dp[0][0] = 0.0;
+					tmp = dp[i][j];
+					if (i) tmp = std::max(tmp, dp[i-1][j] + cg);
+					if (j) tmp = std::max(tmp, dp[i][j-1] + cg);
+					if (i > 0 && j > 0)	tmp = std::max(tmp, dp[i-1][j-1] + ((s1[i-1]==s2[j-1]) ? cy : cn));
 					dp[i][j] = tmp;
-					// printf("%d ", dp[i][j]);
+					printf("%3.0lf ", dp[i][j]);
 				}
-				// printf("\n");
+				printf("\n");
 			}
 		}
 
-
-		void get_dp(size_t i, size_t j, vector<int> &v)
+		void set_g_dp()
 		{
-			if (i && j && dp[i][j] == (dp[i-1][j-1] + (s1[i-1] == s2[j-1]))) 
+			double tmp = 0.0;
+			for (size_t i = 0; i <= s1.size(); ++i)
 			{
-				get_dp(i-1, j-1, v);
+				while (dp.size() <= i)
+				{
+					vector<double> v;
+					v.clear();
+					dp.push_back(v);
+				}
+				for (size_t j = 0; j <= s2.size(); ++j)
+				{
+					while (dp[i].size() <= j) dp[i].push_back(-INF);
+					if (i + j == 0)	dp[0][0] = 0.0;
+					tmp = dp[i][j];
+					if (i) tmp = std::max(tmp, dp[i-1][j] + cg);
+					if (j) tmp = std::max(tmp, dp[i][j-1] + cg);
+					if (i > 0 && j > 0)	tmp = std::max(tmp, dp[i-1][j-1] + ((s1[i-1]==s2[j-1]) ? cy : cn));
+					dp[i][j] = tmp;
+					printf("%3.0lf ", dp[i][j]);
+				}
+				printf("\n");
+			}
+		}
+
+		void get_semi_dp(size_t i, size_t j, vector<int> &v)
+		{
+			if (i && j && dp[i][j] == (dp[i-1][j-1] + ((s1[i-1]==s2[j-1]) ? cy : cn))) 
+			{
+				get_semi_dp(i-1, j-1, v);
 				v.push_back(0);
 				return;
 			}
-			if (i && dp[i][j] == dp[i-1][j])
+			if (j && dp[i][j] == dp[i][j-1] + cg)
 			{
-				get_dp(i-1, j, v);
+				get_semi_dp(i, j-1, v);
+				v.push_back(2);
+				return;
+			}
+			if (i && dp[i][j] == dp[i-1][j] + cg)
+			{
+				get_semi_dp(i-1, j, v);
 				v.push_back(1);
 				return;
 			}
-			if (j && dp[i][j] == dp[i][j-1])
+			// if (i) 
+			// {
+			// 	get_dp(i-1, j, v);
+			// 	v.push_back(1);
+			// 	return;
+			// }
+			// if (j) 
+			// {
+			// 	get_dp(i, j-1, v);
+			// 	v.push_back(2);
+			// 	return;
+			// }
+			// v.push_back(0);
+			return;
+		}
+
+		void get_g_dp(size_t i, size_t j, vector<int> &v)
+		{
+			if (i && j && dp[i][j] == (dp[i-1][j-1] + ((s1[i-1]==s2[j-1]) ? cy : cn))) 
 			{
-				get_dp(i, j-1, v);
+				get_g_dp(i-1, j-1, v);
+				v.push_back(0);
+				return;
+			}
+			if (j && dp[i][j] == dp[i][j-1] + cg)
+			{
+				get_g_dp(i, j-1, v);
 				v.push_back(2);
+				return;
+			}
+			if (i && dp[i][j] == dp[i-1][j] + cg)
+			{
+				get_g_dp(i-1, j, v);
+				v.push_back(1);
 				return;
 			}
 			if (i) 
 			{
-				get_dp(i-1, j, v);
+				get_g_dp(i-1, j, v);
 				v.push_back(1);
 				return;
 			}
 			if (j) 
 			{
-				get_dp(i, j-1, v);
+				get_g_dp(i, j-1, v);
 				v.push_back(2);
 				return;
 			}
-			v.push_back(0);
+			// v.push_back(0);
 			return;
 		}
-
-
-
 	private:
-		vector< vector<int32_t> > dp;
+		vector< vector<double> > dp;
 		vector<int> v;
 		string s1, s2, s_1, s_2;
 };
 
 
 
+
+
+
 int main()
 {
-	string s1 = "AAAAGGGTTGTGGGGGTACCCGTTTGGTTGTG";
-	string s2 = "ATAAGGTTGTTACCCAAAAGGGTGTCG";
+
+	string s1 = "AAAAAAAAAAAAAAAATCGGG", s2 = "GCATCGGGGGGG";
+	
 	string s3, s4;
-	global_alignment ga;
-	ga.set(s1, s2, s3, s4);
-	cout << endl <<s3 << endl << s4 << endl;
-	// cout << s1 << s2 << endl;
+	alignment ga;
+	ga.alignment_g(s1, s2, s3, s4);
+	ga.alignment_semi(s1, s2, s3, s4);
+	// cout << s1 << endl << s2 << endl;
+	// cout << endl <<s3 << endl << s4 << endl;
 	// Global_Alignment(s1, s2);
 	// string s[2];
 
