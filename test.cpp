@@ -11,6 +11,7 @@
 using namespace std;
 
 
+
 class ALIGNMENT
 {
 	public:
@@ -46,7 +47,7 @@ class ALIGNMENT
 					}
 				}
 			}
-			cout << endl << k << endl;
+			// cout << endl << k << endl;
 
 			get_dp(a, b, v);
 
@@ -71,11 +72,11 @@ class ALIGNMENT
 						break;
 
 				}
-				printf("%d ", v[i]);
+				// printf("%d ", v[i]);
 			}
 			s3 = s_1;
 			s4 = s_2;
-			cout << endl << s_1 << endl << s_2 << endl;
+			// cout << endl << s_1 << endl << s_2 << endl;
 		}
 
 		void get_semi(string s11, string s22, string &s3, string &s4)
@@ -107,7 +108,7 @@ class ALIGNMENT
 					b = i;
 				}
 			}
-			cout << endl << k << endl;
+			// cout << endl << k << endl;
 			get_dp(a, b, v);
 
 			s_1.clear();
@@ -131,11 +132,11 @@ class ALIGNMENT
 						break;
 
 				}
-				printf("%d ", v[i]);
+				// printf("%d ", v[i]);
 			}
 			s3 = s_1;
 			s4 = s_2;
-			cout << endl << s_1 << endl << s_2 << endl;
+			// cout << endl << s_1 << endl << s_2 << endl;
 		}
 
 		void get_global(string s11, string s22, string &s3, string &s4)
@@ -146,7 +147,7 @@ class ALIGNMENT
 			alignment_state = GLOBAL;
 			set_dp();
 			v.clear();
-			cout << endl << dp[s1.size()][s2.size()] << endl;
+			// cout << endl << dp[s1.size()][s2.size()] << endl;
 			get_dp(s1.size(), s2.size(), v);
 
 			s_1.clear();
@@ -170,11 +171,11 @@ class ALIGNMENT
 						break;
 
 				}
-				printf("%d ", v[i]);
+				// printf("%d ", v[i]);
 			}
 			s3 = s_1;
 			s4 = s_2;
-			cout << endl << s_1 << endl << s_2 << endl;
+			// cout << endl << s_1 << endl << s_2 << endl;
 		}
 		
 		void set_dp()
@@ -191,28 +192,29 @@ class ALIGNMENT
 				for (size_t j = 0; j <= s2.size(); ++j)
 				{
 					while (dp[i].size() <= j) dp[i].push_back(-INF);
-					if (i==0 && j==0) dp[i][j] = 0;
 					if (alignment_state == GLOBAL)
 					{
-						//
+						dp[i][j] = -INF;
 					}
 					else if (alignment_state == SEMI)
 					{
 						if (i == 0) dp[i][j] = 0;
-						if (j == 0) dp[i][j] = 0;
+						else if (j == 0) dp[i][j] = 0;
+						else dp[i][j] = -INF;
 					}
 					else
 					{
 						dp[i][j] = 0;
 					}
+					if (i==0 && j==0) dp[i][j] = 0;
 					tmp = dp[i][j];
 					if (i) tmp = std::max(tmp, dp[i-1][j] + cg);
 					if (j) tmp = std::max(tmp, dp[i][j-1] + cg);
 					if (i > 0 && j > 0)	tmp = std::max(tmp, dp[i-1][j-1] + ((s1[i-1]==s2[j-1]) ? cy : cn));
 					dp[i][j] = tmp;
-					printf("%3.0lf ", dp[i][j]);
+					// printf("%3.0lf ", dp[i][j]);
 				}
-				printf("\n");
+				// printf("\n");
 			}
 		}
 
@@ -279,19 +281,17 @@ class ALIGNMENT
 
 
 
-
 int main()
 {
 
-	string s1 = "A", s2 = "T";
-	s1 = s2.substr(0, 0);
+	string s1 = "TCGTAACGTAAAACGCTAAAAAAA", s2 = "CGTAAACGTAAAACTCCTCAGAAAAAAAATTGCCATTACTCAGCAGACAACGGAGCCTGGCATGACGGTGTCCCATGTGGTGCATTTGCATGGTATTCAGCCCAGTCTGTTGTTTAGTGGAAAAAACAATACCAGGAAGGAAGTCTCACTGCTGTTGCTGCCGGAGAGGATGTTGTTCCTGCCTCAGAACTGGCTGCCGCTATAAAAAATAAAAGAGTTACAGCTCTTGCTGGGTAAAAAAACATGGAAGTTGAGATCCTCAAAAAAGCCGCGGAGTACACCACTCTACTGTAGTTGCGCAAAGTCGGAGTGGACGATAATGTGATCGTCTATAAGGGCAACGCTATCATAGTCTTGTTCTGGCGCGTAAAAAAACGCGCTTACCTTAACGATAAGCGCGCCGCTGTTCAGGCCTTGAGTGGTTATTCAATTCCTGTGGTGACTGTAAAAGTGCGCGTTTGCTGCGGTGCAACCTGAATCAGCGTTCCATTACGTTGCGCGGCAAGATACCCCTCAGGCCGACAGGTTGCAGGTAATGCAAAGGCGGCTACCTGTTGCTCGCCGTTATAAAGGATCCAGCGTGTCACATAATTTAGTTCGGCACTGGAGAAACGAGTAACAAACGTGGTGCCATCGGGAGCGATCATGCGAAACTCTGGCTGATCTGTATAAGCGTCCAGTTTGTCTGCAAAGAAGACAATTTCTGGATCATAAAATTCCGGTTGATTCAGCGTCGACAGAGAGGCTTCTCCCTGCATAATCCGTTGATTAAACGCCAGCCACTGAGCGGTGGGATTAACATGCGAAGGCACTGATTCACGCAATCTTAATATTTCGTCCGGTATATTCTGGCTGAATATAGCATTTGGTATATATGCATAATTCATATGGCACATATATTGTAGTGGCATATCTACAGAAGCCAGATTGGTTACGGCCATCTTAATATCGAACAGTGTAGAGGATTTGTGAAGGACCACTGTTGGTTGAGCCAGATAATGATGACCGAAACCCATTACATACTCGTAACGTCCGGTAAGGCGTAATATATCTCCCTCTAATTCCATCCATGCTTCATCCATCGCGGCACAGGCCATTTCACCGTGTAGCAGATGAGTATCTTCCGCAGATGGGCAGCCATTAGCCAGCAAACCTGAATGAAAGGCAAAACAGCCATAGGTCTCTATCACCTCTGTCGCCGGTTTAGGCTGGCGAAACATATTGCACATGGTGAGACTGTGTCCATCAAATTGCGCATCCCAAATCATCTGCCCCATCCAGGGAAGAATAATTAAATGTCCACGACTGTTTGCAATTTTAAGCCCCTCGACACCACTGTCATAGCGAAAAGACGTGACAGTAAAATCACTATTTTCCAGCAAGATA";
 	string s3, s4;
 	ALIGNMENT ga;
-	ga.get_global(s1, s2, s3, s4);
+	// ga.get_global(s1, s2, s3, s4);
 	ga.get_semi(s1, s2, s3, s4);
-	ga.get_local(s1, s2, s3, s4);
+	// ga.get_local(s1, s2, s3, s4);
 	// cout << s1 << endl << s2 << endl;
-	// cout << endl <<s3 << endl << s4 << endl;
+	cout << endl <<s3 << endl << s4 << endl;
 	// Global_Alignment(s1, s2);
 	// string s[2];
 

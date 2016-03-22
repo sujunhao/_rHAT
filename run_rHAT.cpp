@@ -495,7 +495,7 @@ int main(int argc, char** argv)
             if (mpv[z].index_of_W > last_w) s2 = ss.substr(last_w, mpv[z].index_of_W - last_w);
             if (s1.size() || s2.size())
             {
-                if (last_r == 0 || last_w == 0)
+                if (last_r == 0 || last_w == 0 || mpv[z].index_of_R + mpv[z].len == dna_read.size() || mpv[z].index_of_W + mpv[z].len == ss.size())
                 {
                     A.get_semi(s1, s2, s3, s4);
                     S1.append(s3);
@@ -513,15 +513,15 @@ int main(int argc, char** argv)
             last_r = mpv[z].index_of_R + mpv[z].len;
             last_w = mpv[z].index_of_W + mpv[z].len;
             // out << "s1----------\n" << s1 << "\ns2---------\n" << s2 << "\ns3--------\n" << s3 << "\ns4--------\n" << s4 << "\nr----------\n" << dna_read.substr(mpv[z].index_of_R, mpv[z].len) << "\nw---------\n" << ss.substr(mpv[z].index_of_W, mpv[z].len) << "\nS1---------\n" << S1 << "\nS2--------\n" << S2 << "\n---------------\n";
-            // out << z
-            // << mpv[z].len \
-            // << endl \
-            // << mpv[z].index_of_R \
-            // << " " << dna_read.substr(mpv[z].index_of_R, mpv[z].len) \
-            // << endl \
-            // << mpv[z].index_of_W \
-            // << " " << ss.substr(mpv[z].index_of_W, mpv[z].len) \
-            // out << endl << S1 << endl << S2 << endl;
+            out << z
+            << mpv[z].len \
+            << endl \
+            << mpv[z].index_of_R \
+            << " " << dna_read.substr(mpv[z].index_of_R, mpv[z].len) \
+            << endl \
+            << mpv[z].index_of_W \
+            << " " << ss.substr(mpv[z].index_of_W, mpv[z].len) << endl;
+            // << endl << S1 << endl << S2 << endl;
         }
         s1.clear();
         s2.clear();
