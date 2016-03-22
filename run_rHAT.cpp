@@ -7,7 +7,7 @@
 #include <unistd.h>
 #include <stdint.h>
 #include "RHT.h"
-#include "global_alignment.h"
+#include "alignment.h"
 using namespace std;
 
 // #define PRINTLOG
@@ -483,7 +483,7 @@ int main(int argc, char** argv)
         get_path_mpv(mpv, mpv.size() - 1, out_path);
 
         //S store the output alignment
-        global_alignment ga;
+        ALIGNMENT A;
         string S1, S2, s1, s2, s3, s4;
         size_t last_r = 0, last_w = 0;
         for (size_t i = 0; i < out_path.size(); ++i)
@@ -495,9 +495,15 @@ int main(int argc, char** argv)
             if (mpv[z].index_of_W > last_w) s2 = ss.substr(last_w, mpv[z].index_of_W - last_w);
             if (s1.size() || s2.size())
             {
-                if (s1.size() != 0 || last_w != 0)
+                if (last_r == 0 || last_w == 0)
                 {
-                    ga.set(s1, s2, s3, s4);
+                    A.get_semi(s1, s2, s3, s4);
+                    S1.append(s3);
+                    S2.append(s4);
+                }
+                else 
+                {
+                    A.get_global(s1, s2, s3, s4);
                     S1.append(s3);
                     S2.append(s4);
                 }
@@ -506,7 +512,7 @@ int main(int argc, char** argv)
             S2.append(ss.substr(mpv[z].index_of_W, mpv[z].len));
             last_r = mpv[z].index_of_R + mpv[z].len;
             last_w = mpv[z].index_of_W + mpv[z].len;
-            out << "s1----------\n" << s1 << "\ns2---------\n" << s2 << "\ns3--------\n" << s3 << "\ns4--------\n" << s4 << "\nr----------\n" << dna_read.substr(mpv[z].index_of_R, mpv[z].len) << "\nw---------\n" << ss.substr(mpv[z].index_of_W, mpv[z].len) << "\nS1---------\n" << S1 << "\nS2--------\n" << S2 << "\n---------------\n";
+            // out << "s1----------\n" << s1 << "\ns2---------\n" << s2 << "\ns3--------\n" << s3 << "\ns4--------\n" << s4 << "\nr----------\n" << dna_read.substr(mpv[z].index_of_R, mpv[z].len) << "\nw---------\n" << ss.substr(mpv[z].index_of_W, mpv[z].len) << "\nS1---------\n" << S1 << "\nS2--------\n" << S2 << "\n---------------\n";
             // out << z
             // << mpv[z].len \
             // << endl \
@@ -521,9 +527,9 @@ int main(int argc, char** argv)
         s2.clear();
         if (last_r < dna_read.size()) s1 = dna_read.substr(last_r, dna_read.size() - last_r);
         if (last_w < ss.size()) s2 = ss.substr(last_w, ss.size() - last_w);
-        if (s1.size()!= 0)
+        if (s1.size() !=  0 || s2.size() != 0)
         {
-            ga.set(s1, s2, s3, s4);
+            A.get_semi(s1, s2, s3, s4);
             S1.append(s3);
             S2.append(s4);
         }
