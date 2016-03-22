@@ -13,15 +13,12 @@ using namespace std;
 class global_alignment
 {
 	public:
-		global_alignment(string s11, string s22, string &s3, string &s4)
-		{
-			s1 = s11;
-			s2 = s22;
-			s_1 = s3;
-			s_2 = s4;
-		}
 		global_alignment()
 		{
+		}
+		~global_alignment()
+		{
+			
 		}
 		void set(string s11, string s22, string &s3, string &s4)
 		{
@@ -103,9 +100,16 @@ class global_alignment
 
 			for (size_t i = 0; i <= s1.size(); ++i)
 			{
+				while (dp.size() <= i)
+				{
+					vector<int32_t> v;
+					v.clear();
+					dp.push_back(v);
+				}
 				for (size_t j = 0; j <= s2.size(); ++j)
 				{
 					tmp = 0;
+					while (dp[i].size() <= j) dp[i].push_back(0);
 					if (i) tmp = std::max(tmp, dp[i-1][j]);
 					if (j) tmp = std::max(tmp, dp[i][j-1]);
 					if (i > 0 && j > 0)	tmp = std::max(tmp, dp[i-1][j-1] + (s1[i-1] == s2[j-1]));
@@ -156,16 +160,17 @@ class global_alignment
 
 
 	private:
-		int32_t dp[100][100];
+		vector< vector<int32_t> > dp;
 		vector<int> v;
 		string s1, s2, s_1, s_2;
 };
 
 
+
 int main()
 {
-	string s1 = "AAAAGGGTTGTTACCCG";
-	string s2 = "ATAAGGTTGTTACCC";
+	string s1 = "AAAAGGGTTGTGGGGGTACCCGTTTGGTTGTG";
+	string s2 = "ATAAGGTTGTTACCCAAAAGGGTGTCG";
 	string s3, s4;
 	global_alignment ga;
 	ga.set(s1, s2, s3, s4);

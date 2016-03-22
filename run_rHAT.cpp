@@ -7,9 +7,10 @@
 #include <unistd.h>
 #include <stdint.h>
 #include "RHT.h"
+#include "global_alignment.h"
 using namespace std;
 
-#define PRINTLOG
+// #define PRINTLOG
 
 typedef struct window {
     uint32_t index_of_W;
@@ -160,6 +161,7 @@ int main(int argc, char** argv)
     num_w = 0;
 
     inRead >> dna_read;
+    out << dna_read << endl << endl;
     //create_read_hash_table
     const size_t readListlen = 11;
     size_t read_hash_len = 1 << (2 * readListlen);
@@ -172,7 +174,7 @@ int main(int argc, char** argv)
         if (index_r >= readListlen)
         {
             read_h[to_bit(dna_read.substr(index_r - readListlen, readListlen))].index.push_back(index_r - readListlen);
-            out << dna_read.substr(index_r - readListlen, readListlen) << " " << to_string(to_bit(dna_read.substr(index_r - readListlen, readListlen))) << " " << index_r - readListlen << endl;
+            // out << dna_read.substr(index_r - readListlen, readListlen) << " " << to_string(to_bit(dna_read.substr(index_r - readListlen, readListlen))) << " " << index_r - readListlen << endl;
         }
     }
     //inside the read_h store vector if some k_mer string appear in read
@@ -392,6 +394,7 @@ int main(int argc, char** argv)
     {
         if (o>0) break;
         string ss = ws[o].s;
+        out << ss << endl;
         size_t count = ws[o].count, window_len = ws[o].len;
         uint64_t index_up = ws[o].index_up;
         uint32_t index_w = ws[o].index_of_W;
@@ -420,11 +423,11 @@ int main(int argc, char** argv)
                         mp_tmp.len = match_len;
                         mp_tmp.index_of_W = i - readListlen;
                         mp_tmp.index_of_R = vv[k];
-                        out << mp_tmp.len \
-                        << " " << mp_tmp.index_of_W \
-                        << " " <<  ss.substr(i - readListlen, mp_tmp.len)\
-                        << " " << mp_tmp.index_of_R \
-                        << endl;
+                        // out << mp_tmp.len \
+                        // << " " << mp_tmp.index_of_W \
+                        // << " " <<  ss.substr(i - readListlen, mp_tmp.len)\
+                        // << " " << mp_tmp.index_of_R \
+                        // << endl;
                         mpv.push_back(mp_tmp);
                         ++k;
                     }
@@ -442,7 +445,7 @@ int main(int argc, char** argv)
         mpv.push_back(Ve);
 
         out << mpv.size() << " " << Ve.index_of_W << " " << Ve.index_of_R << endl << endl;
-        const uint32_t t_wait = 22;
+        const uint32_t t_wait = 1024;
         for (size_t i = 0; i < mpv.size(); ++i)
         {
             for (size_t j = 0; j < mpv.size(); ++j)
@@ -451,13 +454,13 @@ int main(int argc, char** argv)
                 if(mpv[i].index_of_R + mpv[i].len <= mpv[j].index_of_R && mpv[i].index_of_R + mpv[i].len + t_wait>= mpv[j].index_of_R  && mpv[i].index_of_W + mpv[i].len <= mpv[j].index_of_W)
                 {
                     mpv[j].U.push_back(i);
-                    out << " i i_r i_w" << " " << i \
-                    << " | " << mpv[i].index_of_R  \
-                    << " | " << mpv[i].index_of_W  \
-                    << " | " << j \
-                    << " | " << mpv[j].index_of_R  \
-                    << " | " << mpv[j].index_of_W  \
-                    << " | " << mpv[i].len  \
+                    // out << " i i_r i_w" << " " << i \
+                    // << " | " << mpv[i].index_of_R  \
+                    // << " | " << mpv[i].index_of_W  \
+                    // << " | " << j \
+                    // << " | " << mpv[j].index_of_R  \
+                    // << " | " << mpv[j].index_of_W  \
+                    // << " | " << mpv[i].len  \
                     << endl;
                 }
             }
@@ -471,26 +474,77 @@ int main(int argc, char** argv)
             vis.push_back(false);
         }
         find_path_mpv(mpv, mpv.size() - 1);
-        for (size_t i = 0; i < mpv.size(); ++i) 
-        {
-            out << i << " " << dp[i] << endl;
-        }
+        // for (size_t i = 0; i < mpv.size(); ++i) 
+        // {
+        //     out << i << " " << dp[i] << endl;
+        // }
 
         vector<size_t> out_path;
         get_path_mpv(mpv, mpv.size() - 1, out_path);
+
+        //S store the output alignment
+        global_alignment ga;
+        string S1, S2, s1, s2, s3, s4;
+        size_t last_r = 0, last_w = 0;
         for (size_t i = 0; i < out_path.size(); ++i)
         {
             size_t z = out_path[i];
-            out << z
-            << mpv[z].len \
-            << endl \
-            << mpv[z].index_of_R \
-            << " " << dna_read.substr(mpv[z].index_of_R, mpv[z].len) 
-            << endl \
-            << mpv[z].index_of_W \
-            << " " << ss.substr(mpv[z].index_of_W, mpv[z].len) \
-            << endl;
+            s1.clear();
+            s2.clear();
+            if (mpv[z].index_of_R > last_r) s1 = dna_read.substr(last_r, mpv[z].index_of_R - last_r);
+            if (mpv[z].index_of_W > last_w) s2 = ss.substr(last_w, mpv[z].index_of_W - last_w);
+            if (s1.size() || s2.size())
+            {
+                ga.set(s1, s2, s3, s4);
+                S1.append(s3);
+                S2.append(s4);
+            }
+            S1.append(dna_read.substr(mpv[z].index_of_R, mpv[z].len));
+            S2.append(ss.substr(mpv[z].index_of_W, mpv[z].len));
+            last_r = mpv[z].index_of_R + mpv[z].len;
+            last_w = mpv[z].index_of_W - mpv[z].len;
+            // out << z
+            // << mpv[z].len \
+            // << endl \
+            // << mpv[z].index_of_R \
+            // << " " << dna_read.substr(mpv[z].index_of_R, mpv[z].len) \
+            // << endl \
+            // << mpv[z].index_of_W \
+            // << " " << ss.substr(mpv[z].index_of_W, mpv[z].len) \
+            // << endl << S1 << endl << S2 << endl;
         }
+        s1.clear();
+        s2.clear();
+        if (last_r < dna_read.size()) s1 = dna_read.substr(last_r, dna_read.size() - last_r);
+        if (last_w < ss.size()) s2 = ss.substr(last_w, ss.size() - last_w);
+        if (s1.size()!= 0)
+        {
+            ga.set(s1, s2, s3, s4);
+            S1.append(s3);
+            S2.append(s4);
+        }
+
+        for (size_t i = 0; i < S1.size(); ++i)
+        {
+            if (S1[i] != '_')
+            {
+                S1 = S1.substr(i, S1.size() - i);
+                S2 = S2.substr(i, S2.size() - i);
+                break;
+            }
+        }
+
+        for (size_t i = S1.size() - 1; i >= 0; --i)
+        {
+            if (S1[i] != '_')
+            {
+                S1 = S1.substr(0, i+1);
+                S2 = S2.substr(0, i+1);
+                break;
+            }
+        }
+        out << endl << S1 << endl;
+        out << endl << S2 << endl;
 
     }
 
