@@ -8,7 +8,7 @@
 #include "RHT.h"
 using namespace std;
 
-#define PRINT_WINDOW_INDEX
+// #define PRINT_WINDOW_INDEX
 
 int main(int argc, char** argv) 
 {
@@ -39,7 +39,7 @@ int main(int argc, char** argv)
     
 
     FILE *pout;
-    pout = fopen("out_RHT", "w");
+    pout = fopen("out_RHT", "wb");
     
     // ofstream pout;
     // pout.open("out_RHT");
@@ -69,28 +69,28 @@ int main(int argc, char** argv)
             ++dna_ref_b;
             dna_w.append(dna_s, index_s++, 1);
 
-            if (dna_ref_b > WindowListLen / 2 && ((dna_ref_b - 1 - WindowListLen / 2) % WindowListLen + 1 >= PointerListLen))
-            {
-                if ((dna_ref_b - 1) % WindowListLen + 1>= PointerListLen)
-                {
-                    if ((dna_ref_b / WindowListLen) * 2 < 2 * ((dna_ref_b - WindowListLen / 2 ) / WindowListLen) + 1)
-                    {
-                        db.link_string(dna_w.substr(dna_w.size() - PointerListLen, PointerListLen), ((dna_ref_b - 1) / WindowListLen) * 2);
-                        db.link_string(dna_w.substr(dna_w.size() - PointerListLen, PointerListLen), 2 * ((dna_ref_b - 1- WindowListLen / 2 ) / WindowListLen) + 1);
-                    }
-                    else
-                    {
-                        db.link_string(dna_w.substr(dna_w.size() - PointerListLen, PointerListLen), 2 * ((dna_ref_b - 1 - WindowListLen / 2 ) / WindowListLen) + 1);
-                        db.link_string(dna_w.substr(dna_w.size() - PointerListLen, PointerListLen), ((dna_ref_b - 1) / WindowListLen) * 2);
-                    }
-                }
-                else 
-                    db.link_string(dna_w.substr(dna_w.size() - PointerListLen, PointerListLen), 2 * ((dna_ref_b - 1 - WindowListLen / 2 ) / WindowListLen) + 1);
-            }
-            else if ((dna_ref_b - 1) % WindowListLen + 1>= PointerListLen)
-            {
-                    db.link_string(dna_w.substr(dna_w.size() - PointerListLen, PointerListLen), ((dna_ref_b - 1) / WindowListLen) * 2);
-            }
+            // if (dna_ref_b > WindowListLen / 2 && ((dna_ref_b - 1 - WindowListLen / 2) % WindowListLen + 1 >= PointerListLen))
+            // {
+            //     if ((dna_ref_b - 1) % WindowListLen + 1>= PointerListLen)
+            //     {
+            //         if ((dna_ref_b / WindowListLen) * 2 < 2 * ((dna_ref_b - WindowListLen / 2 ) / WindowListLen) + 1)
+            //         {
+            //             db.link_string(dna_w.substr(dna_w.size() - PointerListLen, PointerListLen), ((dna_ref_b - 1) / WindowListLen) * 2);
+            //             db.link_string(dna_w.substr(dna_w.size() - PointerListLen, PointerListLen), 2 * ((dna_ref_b - 1- WindowListLen / 2 ) / WindowListLen) + 1);
+            //         }
+            //         else
+            //         {
+            //             db.link_string(dna_w.substr(dna_w.size() - PointerListLen, PointerListLen), 2 * ((dna_ref_b - 1 - WindowListLen / 2 ) / WindowListLen) + 1);
+            //             db.link_string(dna_w.substr(dna_w.size() - PointerListLen, PointerListLen), ((dna_ref_b - 1) / WindowListLen) * 2);
+            //         }
+            //     }
+            //     else 
+            //         db.link_string(dna_w.substr(dna_w.size() - PointerListLen, PointerListLen), 2 * ((dna_ref_b - 1 - WindowListLen / 2 ) / WindowListLen) + 1);
+            // }
+            // else if ((dna_ref_b - 1) % WindowListLen + 1>= PointerListLen)
+            // {
+            //         db.link_string(dna_w.substr(dna_w.size() - PointerListLen, PointerListLen), ((dna_ref_b - 1) / WindowListLen) * 2);
+            // }
 
             #ifdef PRINT_WINDOW_INDEX
                 if (dna_ref_b >= WindowListLen)
@@ -103,7 +103,7 @@ int main(int argc, char** argv)
         }
 
         #ifndef PRINT_WINDOW_INDEX
-        if (dna_w.size() > 2 * WindowListLen) dna_w = dna_w.substr(dna_w.size()-PointerListLen*2, PointerListLen*2);
+        // if (dna_w.size() > 1000 * WindowListLen) dna_w = dna_w.substr(dna_w.size()-PointerListLen*2, PointerListLen*2);
         #endif
 
         #ifdef PRINT_WINDOW_INDEX
