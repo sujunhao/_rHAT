@@ -8,7 +8,7 @@
 #include "RHT.h"
 using namespace std;
 
-#define PRINT_WINDOW_INDEX
+// #define PRINT_WINDOW_INDEX
 
 int main(int argc, char** argv) 
 {
@@ -60,36 +60,42 @@ int main(int argc, char** argv)
         outf.open("out_window");
     #endif
 
+    size_t k, dna_s_size;
+
 // SCANF_WINDOW
     while (inf >> dna_s)
     {
+
+        dna_w.append(dna_s);
         index_s = 0;
-        while (index_s < dna_s.size()) 
+        k = 0;
+        dna_s_size = dna_s.size();
+        while (index_s < dna_s_size) 
         {
             ++dna_ref_b;
-            dna_w.append(dna_s, index_s++, 1);
-
-            if (dna_ref_b > WindowListLen / 2 && ((dna_ref_b - 1 - WindowListLen / 2) % WindowListLen + 1 >= PointerListLen))
+            k = dna_s_size - index_s - 1;
+            ++index_s;
+           if (dna_ref_b > WindowListLen / 2 && ((dna_ref_b - 1 - WindowListLen / 2) % WindowListLen + 1 >= PointerListLen))
             {
                 if ((dna_ref_b - 1) % WindowListLen + 1>= PointerListLen)
                 {
                     if ((dna_ref_b / WindowListLen) * 2 < 2 * ((dna_ref_b - WindowListLen / 2 ) / WindowListLen) + 1)
                     {
-                        db.link_string(dna_w.substr(dna_w.size() - PointerListLen, PointerListLen), ((dna_ref_b - 1) / WindowListLen) * 2);
-                        db.link_string(dna_w.substr(dna_w.size() - PointerListLen, PointerListLen), 2 * ((dna_ref_b - 1- WindowListLen / 2 ) / WindowListLen) + 1);
+                        db.link_string(dna_w.substr(dna_w.size() - k - PointerListLen, PointerListLen), ((dna_ref_b - 1) / WindowListLen) * 2);
+                        db.link_string(dna_w.substr(dna_w.size() - k  - PointerListLen, PointerListLen), 2 * ((dna_ref_b - 1- WindowListLen / 2 ) / WindowListLen) + 1);
                     }
                     else
                     {
-                        db.link_string(dna_w.substr(dna_w.size() - PointerListLen, PointerListLen), 2 * ((dna_ref_b - 1 - WindowListLen / 2 ) / WindowListLen) + 1);
-                        db.link_string(dna_w.substr(dna_w.size() - PointerListLen, PointerListLen), ((dna_ref_b - 1) / WindowListLen) * 2);
+                        db.link_string(dna_w.substr(dna_w.size() - k  - PointerListLen, PointerListLen), 2 * ((dna_ref_b - 1 - WindowListLen / 2 ) / WindowListLen) + 1);
+                        db.link_string(dna_w.substr(dna_w.size() - k  - PointerListLen, PointerListLen), ((dna_ref_b - 1) / WindowListLen) * 2);
                     }
                 }
                 else 
-                    db.link_string(dna_w.substr(dna_w.size() - PointerListLen, PointerListLen), 2 * ((dna_ref_b - 1 - WindowListLen / 2 ) / WindowListLen) + 1);
+                    db.link_string(dna_w.substr(dna_w.size() - k  - PointerListLen, PointerListLen), 2 * ((dna_ref_b - 1 - WindowListLen / 2 ) / WindowListLen) + 1);
             }
             else if ((dna_ref_b - 1) % WindowListLen + 1>= PointerListLen)
             {
-                    db.link_string(dna_w.substr(dna_w.size() - PointerListLen, PointerListLen), ((dna_ref_b - 1) / WindowListLen) * 2);
+                    db.link_string(dna_w.substr(dna_w.size() - k  - PointerListLen, PointerListLen), ((dna_ref_b - 1) / WindowListLen) * 2);
             }
 
             #ifdef PRINT_WINDOW_INDEX
