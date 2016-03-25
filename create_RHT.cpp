@@ -108,9 +108,9 @@ int main(int argc, char** argv)
             #endif
         }
 
-        #ifndef PRINT_WINDOW_INDEX
-        if (dna_w.size() > 2 * WindowListLen) dna_w = dna_w.substr(dna_w.size()-PointerListLen*2, PointerListLen*2);
-        #endif
+        // #ifndef PRINT_WINDOW_INDEX
+        // if (dna_w.size() > 2 * WindowListLen) dna_w = dna_w.substr(dna_w.size()-PointerListLen*2, PointerListLen*2);
+        // #endif
 
         #ifdef PRINT_WINDOW_INDEX
         if (dna_w.size() > 5 * WindowListLen) dna_w = dna_w.substr(dna_w.size()-WindowListLen, WindowListLen);
@@ -138,6 +138,38 @@ int main(int argc, char** argv)
     
     fclose(pout);
     inf.close();
+
+
+    RHT rht(dna_ref_b);
+    for (size_t i = 0; i < dna_ref_b; ++i)
+    {
+        if (dna_ref_b > WindowListLen / 2 && ((dna_ref_b - 1 - WindowListLen / 2) % WindowListLen + 1 >= PointerListLen))
+        {
+            if ((dna_ref_b - 1) % WindowListLen + 1>= PointerListLen)
+            {
+                if ((dna_ref_b / WindowListLen) * 2 < 2 * ((dna_ref_b - WindowListLen / 2 ) / WindowListLen) + 1)
+                {
+                    rht.link(dna_w.substr(dna_ref_b - PointerListLen, PointerListLen), ((dna_ref_b - 1) / WindowListLen) * 2);
+                    rht.link(dna_w.substr(dna_ref_b  - PointerListLen, PointerListLen), 2 * ((dna_ref_b - 1- WindowListLen / 2 ) / WindowListLen) + 1);
+                }
+                else
+                {
+                    rht.link(dna_w.substr(dna_ref_b  - PointerListLen, PointerListLen), 2 * ((dna_ref_b - 1 - WindowListLen / 2 ) / WindowListLen) + 1);
+                    rht.link(dna_w.substr(dna_ref_b  - PointerListLen, PointerListLen), ((dna_ref_b - 1) / WindowListLen) * 2);
+                }
+            }
+            else 
+                rht.link(dna_w.substr(dna_ref_b  - PointerListLen, PointerListLen), 2 * ((dna_ref_b - 1 - WindowListLen / 2 ) / WindowListLen) + 1);
+        }
+        else if ((dna_ref_b - 1) % WindowListLen + 1>= PointerListLen)
+        {
+                rht.link(dna_w.substr(dna_ref_b  - PointerListLen, PointerListLen), ((dna_ref_b - 1) / WindowListLen) * 2);
+        }
+    }
+    FILE *oo;
+    oo = fopen("oo", "w+");
+    rht.print_hash(oo);
+    fclose(oo);
 
     printf("Time used = %.2f\n",  (double)clock() / CLOCKS_PER_SEC);
 
