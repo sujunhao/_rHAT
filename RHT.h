@@ -47,7 +47,7 @@ uint32_t to_bit(string s)
                 bitnum |= BASE_T << shift;
                 break;
             default:
-                std::cout << "invalid DNA base\n";
+                std::cout << s << " invalid DNA base\n";
                 return 0;
 
         }
@@ -133,6 +133,26 @@ class dna_bitset
                 m_data[n].push_back(std::make_pair(dna_ref_index, 1));            
             //std::cout << s << " " << n << " " << v << " " << dna_ref_index << std::endl;
         }
+
+        void link_string(uint32_t n, uint32_t dna_ref_index)
+        {
+            uint32_t v = m_data[n].size();
+            if (v > 0)
+            {
+                if (m_data[n][v - 1].first == dna_ref_index)
+                    ++m_data[n][v - 1].second;
+                else if (v > 1 && m_data[n][v - 2].first == dna_ref_index)
+                    ++m_data[n][v - 2].second;
+                else if (m_data[n][v-1].first > dna_ref_index)
+                    m_data[n].insert(m_data[n].end() - 1, std::make_pair(dna_ref_index, 1));
+                else
+                    m_data[n].push_back(std::make_pair(dna_ref_index, 1));
+            }
+            else
+                m_data[n].push_back(std::make_pair(dna_ref_index, 1));            
+            // std::cout << s << " " << n << " " << v << " " << dna_ref_index << std::endl;
+        }
+
 
 
         //write hash table to fstream
@@ -224,83 +244,3 @@ class dna_bitset
         size_t bit_len;
 };
 
-class RHT
-{
-private:
-    uint64_t *PW;
-    uint32_t *P, *W;
-    size_t p_len, w_len, pw_len;
-    size_t pw_index;
-    uint64_t n, tmp;
-public:
-    RHT(size_t dna_size)
-    {
-        //pointer list len is + 1
-        p_len = 1UL << (2 * PointerListLen) + 1;
-        w_len = dna_size - WindowListLen + 1;
-        pw_len = dna_size - WindowListLen + 1;
-        PW = new uint64_t[pw_len];
-        P = new uint32_t[p_len];
-        W = new uint32_t[w_len];
-        pw_index = 0;
-    }
-
-    void link(string s, uint32_t dna_ref_index)
-    {
-        n = to_bit(s);
-        tmp = n << 32;
-        tmp |= dna_ref_index;
-        PW[pw_index++] = tmp;
-        if (pw_index == pw_len) sort();
-    }
-
-    void sort()
-    {
-        std::sort(PW, PW+pw_len);
-        memset(P, 0, sizeof(P));
-        for (size_t i = 0; i < pw_len; ++i)
-        {
-            W[i] = PW[i] & 0xffff;
-            //pointer link to window index is + 1
-            P[(PW[i] >> 32)]  = i + 1;
-        }
-        size_t last = 0;
-        for (size_t i = pw_len - 1; i >= 0; --i)
-        {
-            if ((PW[i] >>  32) == (PW[pw_index - 1] >> 32)) ++last;
-            else break;
-        }
-        for (size_t i = p_len - 1; i >= 0; --i)
-        {
-            if (P[i] > 0)
-            {
-                if (P[i+1] == 0) P[i+1] = last;
-                last = P[i];
-            }
-        }
-    }
-
-    void print_hash(FILE *pp)
-    {
-        for (size_t i = 0; i < p_len - 1; ++i)
-        {
-            if (P[i] > 0&& (P[i+1] - P[i]) > 0)
-            {
-                fprintf(pp, "%s", to_string(i).c_str());
-                for (size_t j = P[i]; j < P[i+1]; ++j)
-                {
-                    fprintf(pp, " %lu", (unsigned long)W[j]);
-                }
-                fprintf(pp, "\n");
-            }
-        }
-    }
-
-    ~RHT()
-    {
-        delete [] PW;
-        delete [] P;
-        delete [] W;
-    }
-
-};
