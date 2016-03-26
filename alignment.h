@@ -8,13 +8,14 @@
 #include <stdint.h>
 using namespace std;
 
+double scy = 1, scn = -5, scg = -2;
 
 class ALIGNMENT
 {
 	public:
 		ALIGNMENT()
 		{
-			cy = 3; cn = -1; cg = -2;
+			cy = scy; cn = scn; cg = scg;
 			INF = 0xFFFFFFFF;
 		}
 		~ALIGNMENT()
