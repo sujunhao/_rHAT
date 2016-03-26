@@ -4,7 +4,7 @@
 
 
 
-usage:
+## usage:
 ```
 ./create_RHT
 ./run_rHAT
