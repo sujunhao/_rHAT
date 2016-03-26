@@ -143,6 +143,8 @@ int main(int argc, char** argv)
     dna_bitset db(PointerListLen);
     db.read_hash_in(inRHT);
     cout << "succeed load RHT\n";
+    printf("------------------%.2f\n",  (double)clock() / CLOCKS_PER_SEC);
+
 
     // ofstream outRHT;
     // outRHT.open("out_R");
@@ -152,6 +154,8 @@ int main(int argc, char** argv)
     {
         inRead >> dna_read;
         if (mark[0]!='@') continue;
+        std::cout << mark  << endl;
+
         string last_score_s;
         double last_score = -0xffffff;
         for (int op=0; op<2; ++op)
@@ -371,7 +375,7 @@ int main(int argc, char** argv)
                 QWin_C.pop();
             }
 
-
+            if (ws[0].count < 100) continue;
 
             //ws already have index_w and count info., this function is to find ws array string, index_up and len
             TO_SORT K[wcfull];
@@ -396,7 +400,7 @@ int main(int argc, char** argv)
 
             inf.open("E.coli.fa");
             getline(inf, dna_name);
-            std::cout << dna_name  << endl;
+            // std::cout << dna_name  << endl;
 
             // SCANF_WINDOW
 
@@ -512,30 +516,7 @@ int main(int argc, char** argv)
                         }
                     }
                 }
-                // out << "\n";
-                // for (size_t i = 0, j; i<mpv.size(); ++i)
-                // {
-                //     out << i << " ";
-                //     if (del[i]>0) 
-                //         out << del[i]-1 << "~~~~~~~~~~~~~~";
-                //     // if (del[i]>0) 
-                //     // {
-                //     //     out << del[i]-1 << "~~~~~~~~~~~~~~";
-                //     //     j = del[i]-1;
-                //     //     out << "~~~~~~~~~~~~~~~" << mpv[j].len \
-                //     //     << " " << mpv[j].index_of_R \
-                //     //     << " " <<  dna_read.substr(mpv[j].index_of_R, mpv[j].len)\
-                //     //     << " " << mpv[j].index_of_W \
-                //     //     << " " <<  ss.substr(mpv[j].index_of_W, mpv[j].len) << " ";
-                //     // }
-
-                //     out << mpv[i].len \
-                //     << " " << mpv[i].index_of_R \
-                //     << " " <<  dna_read.substr(mpv[i].index_of_R, mpv[i].len)\
-                //     << " " << mpv[i].index_of_W \
-                //     << " " <<  ss.substr(mpv[i].index_of_W, mpv[i].len)\
-                //     << endl;
-                // }
+                
 
                 size_t j = mpv.size() - 1;
                 for (vector<MATCH_POINT>::iterator i = mpv.end() - 1; i >= mpv.begin(); --i)
@@ -548,28 +529,6 @@ int main(int argc, char** argv)
                 }
                 delete [] del;
                 
-
-                // for (size_t i = 0, j; i<mpv.size(); ++i)
-                // {
-                //     out << i << " sadasdasdasdasd";
-                //     // if (del[i]>0) 
-                //     // {
-                //     //     out << del[i]-1 << "~~~~~~~~~~~~~~";
-                //     //     j = del[i]-1;
-                //     //     out << "~~~~~~~~~~~~~~~" << mpv[j].len \
-                //     //     << " " << mpv[j].index_of_R \
-                //     //     << " " <<  dna_read.substr(mpv[j].index_of_R, mpv[j].len)\
-                //     //     << " " << mpv[j].index_of_W \
-                //     //     << " " <<  ss.substr(mpv[j].index_of_W, mpv[j].len) << " ";
-                //     // }
-
-                //     out << mpv[i].len \
-                //     << " " << mpv[i].index_of_R \
-                //     << " " <<  dna_read.substr(mpv[i].index_of_R, mpv[i].len)\
-                //     << " " << mpv[i].index_of_W \
-                //     << " " <<  ss.substr(mpv[i].index_of_W, mpv[i].len)\
-                //     << endl;
-                // }
 
                 //init V_start, V_end
                 MATCH_POINT Vs, Ve;
@@ -821,7 +780,7 @@ int main(int argc, char** argv)
 
 
             }
-            std::cout << max_score << endl;
+            std::cout << "score: " << max_score << endl;
             if (max_score > last_score)
             {
                 last_score = max_score;
@@ -832,8 +791,8 @@ int main(int argc, char** argv)
         }   
         
 
+        printf("------------------%.2f\n",  (double)clock() / CLOCKS_PER_SEC);
         
-        printf("Time used = %.2f\n",  (double)clock() / CLOCKS_PER_SEC);
         out << last_score_s << endl;
         out << last_score << endl;
 
