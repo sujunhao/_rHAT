@@ -9,6 +9,13 @@
 using namespace std;
 
 // #define PRINT_WINDOW_INDEX
+uint32_t get_c[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+                    0, 0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+                    3};
+
+uint32_t MASK = 0xffffffff;
 
 int main(int argc, char** argv) 
 {
@@ -17,54 +24,62 @@ int main(int argc, char** argv)
     ifstream inf;
     inf.open("E.coli.fa");
 
-    string dna_name, dna_s;
-    const size_t tmp = 1024;
-    char dna_w[tmp];
-    string dna_w()
+    ofstream out;
+    out.open("outt");
+    FILE *pout;
+    pout = fopen("out_RHT", "w");
 
-    uint64_t dna_ref_b = 0;
-    size_t  index_s = 0;
-    size_t  index_w = 0;
+    string dna_name, dna_s, dna_w;
 
     getline(inf, dna_name);
 
-    while (inf >> dna_s)
-    {
-        index_s = 0;
-        while (index_s < dna_s.size())
-        {
-            ++dna_ref_b;
-            dna_w[index_w] = dna_s[index_s]
+    while (inf >> dna_s) dna_w.append(dna_s);
+    uint32_t tmp = 0, tar;
 
-            if (dna_ref_b > WindowListLen / 2 && ((dna_ref_b - 1 - WindowListLen / 2) % WindowListLen + 1 >= PointerListLen))
+    //init mask
+    MASK = MASK >> (32 - PointerListLen * 2);
+    dna_bitset db(PointerListLen);
+
+
+    for (size_t i=0; i<dna_w.size(); ++i)
+    {   
+        tmp = (tmp << 2) | get_c[dna_w[i]];
+        tar = tmp & MASK;
+        if (i>=PointerListLen - 1)
+        {
+            //if i > window NO.1
+            if (i > WindowListLen / 2 && ((i - WindowListLen / 2) % WindowListLen + 1 >= PointerListLen))
             {
-                if ((dna_ref_b - 1) % WindowListLen + 1>= PointerListLen)
+                if (i % WindowListLen + 1>= PointerListLen)
                 {
-                    if ((dna_ref_b / WindowListLen) * 2 < 2 * ((dna_ref_b - WindowListLen / 2 ) / WindowListLen) + 1)
+                    if ((i /  WindowListLen) * 2 < 2 * ((i - WindowListLen / 2 ) / WindowListLen) + 1)
                     {
-                        db.link_string(dna_w.substr(dna_w.size() - PointerListLen, PointerListLen), ((dna_ref_b - 1) / WindowListLen) * 2);
-                        db.link_string(dna_w.substr(dna_w.size() - PointerListLen, PointerListLen), 2 * ((dna_ref_b - 1- WindowListLen / 2 ) / WindowListLen) + 1);
+                        db.link_string(tar, (i / WindowListLen) * 2);
+                        db.link_string(tar, 2 * ((i- WindowListLen / 2 ) / WindowListLen) + 1);
                     }
                     else
                     {
-                        db.link_string(dna_w.substr(dna_w.size() - PointerListLen, PointerListLen), 2 * ((dna_ref_b - 1 - WindowListLen / 2 ) / WindowListLen) + 1);
-                        db.link_string(dna_w.substr(dna_w.size() - PointerListLen, PointerListLen), ((dna_ref_b - 1) / WindowListLen) * 2);
+                        db.link_string(tar, 2 * ((i - WindowListLen / 2 ) / WindowListLen) + 1);
+                        db.link_string(tar, (i / WindowListLen) * 2);
                     }
                 }
                 else 
-                    db.link_string(dna_w.substr(dna_w.size() - PointerListLen, PointerListLen), 2 * ((dna_ref_b - 1 - WindowListLen / 2 ) / WindowListLen) + 1);
+                    db.link_string(tar,2 * ((i - WindowListLen / 2 ) / WindowListLen) + 1);
             }
-            else if ((dna_ref_b - 1) % WindowListLen + 1>= PointerListLen)
+            else if (i % WindowListLen + 1>= PointerListLen)
             {
-                    db.link_string(dna_w.substr(dna_w.size() - PointerListLen, PointerListLen), ((dna_ref_b - 1) / WindowListLen) * 2);
+                    db.link_string(tar, (i / WindowListLen) * 2);
             }
-            ++index_s;
-            ++index_w;
-            index_w %= tmp;
+
         }
-    }
+        // out << to_string(tar) << endl;
+    } 
 
-
+   
+    // db.write_hash_out(pout);
+    fclose(pout);
+    
+    inf.close();
 
     printf("Time used = %.2f\n",  (double)clock() / CLOCKS_PER_SEC);
 
