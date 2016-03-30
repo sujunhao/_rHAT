@@ -9,13 +9,6 @@
 using namespace std;
 
 // #define PRINT_WINDOW_INDEX
-uint32_t get_c[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
-                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
-                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
-                    0, 0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
-                    3};
-
-uint32_t MASK = 0xffffffff;
 
 int main(int argc, char** argv) 
 {
@@ -26,8 +19,9 @@ int main(int argc, char** argv)
 
     ofstream out;
     out.open("outt");
+
     FILE *pout;
-    pout = fopen("out_RHT", "w");
+    pout = fopen("out_R", "wb");
 
     string dna_name, dna_s, dna_w;
 
@@ -38,7 +32,8 @@ int main(int argc, char** argv)
 
     //init mask
     MASK = MASK >> (32 - PointerListLen * 2);
-    dna_bitset db(PointerListLen);
+    std::cout << dna_w.size() << endl;
+    RHT db(dna_w.size());
 
 
     for (size_t i=0; i<dna_w.size(); ++i)
@@ -72,10 +67,11 @@ int main(int argc, char** argv)
             }
 
         }
-        // out << to_string(tar) << endl;
     } 
 
-   
+    db.create_p_w();
+    db.write_hash(pout);
+    db.write_hash_test(out);
     // db.write_hash_out(pout);
     fclose(pout);
     
@@ -86,4 +82,3 @@ int main(int argc, char** argv)
     return 0;
     
 }
-

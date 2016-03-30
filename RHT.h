@@ -252,3 +252,109 @@ class dna_bitset
         size_t bit_len;
 };
 
+
+class RHT
+{
+    private:
+        size_t pw_len, p_len, w_len;
+        uint32_t *P, *W;
+        uint64_t *PW;
+        uint32_t index, w_index;
+        uint64_t tmp;
+    public:
+        RHT(size_t k)
+        {
+            p_len = (size_t)1 << (PointerListLen << 1) + 1;
+            w_len = k << 1;
+            pw_len = w_len;
+
+            P = new uint32_t[p_len];
+            W = new uint32_t[w_len];
+            PW = new uint64_t[pw_len];
+
+            index = 0;
+            w_index = 0;
+        }
+        ~RHT()
+        {
+            delete [] P;
+            delete [] W;
+            delete [] PW;
+        }
+
+        void link_string(uint32_t p_index, uint32_t w_index)
+        {
+            tmp = p_index;
+            tmp = tmp << 32;
+            tmp = tmp | w_index;
+            // std::cout << std::bitset<64>(tmp) << " " << std::bitset<32>(p_index) << " " << std::bitset<32>(w_index) << std::endl;
+            PW[index++] = tmp;
+        }
+
+        void create_p_w()
+        {
+            std::sort(PW, PW+index);
+            // memset(P, 0, sizeof(P));
+            uint32_t p_tmp, last;
+            w_index=0;
+            p_tmp = PW[0] >> 32;
+            last = p_tmp;
+            P[p_tmp] = w_index + 1;
+            W[w_index] = PW[0];
+            ++w_index;
+            // std::cout << std::bitset<64>(PW[0]) << " " << std::bitset<32>(p_tmp) << " " << std::bitset<32>(W[w_index])  << std::endl;
+            for (size_t i = 1; i<index; ++i)
+            {
+                if (PW[i]==PW[i-1]) continue;
+                p_tmp = PW[i] >> 32;
+                if (p_tmp == last) 
+                {
+                    W[w_index++] = PW[i];
+                    continue;
+                }
+                
+                P[last+1] = w_index+1;
+                P[p_tmp] = w_index+1;
+                last = p_tmp;
+                W[w_index++] = PW[i];
+                
+            }
+            P[last+1] = w_index+1;
+        }
+
+        void write_hash(FILE *out)
+        {
+            // fprintf(out, "%lu|", (unsigned long)w_index);
+            fwrite(P, sizeof(uint32_t), p_len, out);
+            fwrite(&w_index, sizeof(uint32_t), 1, out);
+            // std::cout << w_index << std::endl;
+            fwrite(W, sizeof(uint32_t), w_index, out);
+        }
+
+        void read_hash(FILE *in)
+        {
+            fread(P, sizeof(uint32_t), p_len, in);
+            fread(&w_index, sizeof(uint32_t), 1, in);
+            // std::cout << w_index << std::endl;
+            fread(W, sizeof(uint32_t), w_index, in);
+        }
+
+        
+        void write_hash_test(std::ofstream &out)
+        {
+            for (size_t i = 0; i<p_len-1; ++i)
+            {
+                if (P[i] > 0 && P[i+1] > 0 && P[i+1] > P[i])
+                {
+                    // out << std::bitset<32>(i);
+                    out << to_string((uint32_t)i);
+
+                    for (size_t j = P[i]-1; j < P[i+1]-1; ++j)
+                    {
+                        out << " " << W[j];
+                    }
+                    out << "\n";
+                }
+            }
+        }
+};
