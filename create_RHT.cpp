@@ -8,7 +8,7 @@
 #include "RHT.h"
 using namespace std;
 
-#define PRINTLOG
+// #define PRINTLOG
 
 int main(int argc, char** argv) 
 {

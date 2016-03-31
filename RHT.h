@@ -257,12 +257,12 @@ class RHT
 {
     private:
         size_t pw_len, p_len, w_len;
-        uint64_t *PW;
-        uint32_t index, w_index;
         uint64_t tmp;
     public:
+        uint32_t index, w_index;
+        uint64_t *PW;
         uint32_t *P, *W;
-        
+
         RHT(size_t k)
         {
             p_len = (size_t)1 << (PointerListLen << 1) + 1;
@@ -283,9 +283,16 @@ class RHT
             delete [] PW;
         }
 
+        void clear()
+        {
+            memset(PW, sizeof(PW), 0);
+            // memset(P, sizeof(P), 0);
+            index = 0;
+        }
 
         void link_string(uint32_t p_index, uint32_t w_index)
         {
+            // P[p_index] = index;
             tmp = p_index;
             tmp = tmp << 32;
             tmp = tmp | w_index;
@@ -293,10 +300,35 @@ class RHT
             PW[index++] = tmp;
         }
 
+        uint32_t search(uint32_t p_index)
+        {
+            //binary search
+            uint32_t l=0, r=index-1, m;
+            while (l < r)
+            {
+                m = (l+r)/2;
+                if (p_index <= (PW[m]>>32)) r = m;
+                else l = m + 1;
+            }
+            if ((PW[r]>>32) == p_index) return r+1;
+            return 0;
+        }
+
+        void sort_pw()
+        {
+            std::sort(PW, PW+index);
+            // uint32_t p_tmp;
+            // for (size_t i = 0; i < index; ++i)
+            // {
+            //     p_tmp = PW[i]>>32;
+            //     if (!P[p_tmp])
+            //     P[p_tmp] = i+1;
+            // }
+        }
         void create_p_w()
         {
             std::sort(PW, PW+index);
-            // memset(P, 0, sizeof(P));
+            memset(P, 0, sizeof(P));
             uint32_t p_tmp, last;
             w_index=0;
             p_tmp = PW[0] >> 32;

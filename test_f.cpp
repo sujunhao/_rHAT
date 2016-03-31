@@ -9,73 +9,33 @@
 using namespace std;
 
 // #define PRINT_WINDOW_INDEX
-
+uint32_t z[]={0, 2, 2, 5, 6, 34, 55, 56, 67, 100};
+uint32_t search(uint32_t p_index)
+{
+    //binary search
+    uint32_t l=0, r=9, m;
+    while (l < r)
+    {
+        m = (l+r)/2;
+        if (p_index <= (z[m]))   r = m;
+        else l = m + 1;
+    }
+    // printf("%lu %lu %lu\n", (unsigned long)l, (unsigned long)m, (unsigned long)r);
+    if (z[r] == p_index) return r+1;
+    return 0;
+}
 int main(int argc, char** argv) 
 {
 
-    
-    ifstream inf;
-    inf.open("E.coli.fa");
+    unsigned long k;
+    for (size_t i=0; i<1000; ++i)
+        if (search(i)) printf("%lu\n", i);
+    // while (~scanf("%lu", &k))
+    // {
+    //     uint32_t f = k;
+    //     printf("%lu\n", (unsigned long)search(f));
+    // }
 
-    ofstream out;
-    out.open("outt");
-
-    FILE *pout;
-    pout = fopen("out_R", "wb");
-
-    string dna_name, dna_s, dna_w;
-
-    getline(inf, dna_name);
-
-    while (inf >> dna_s) dna_w.append(dna_s);
-    uint32_t tmp = 0, tar;
-
-    //init mask
-    MASK = MASK >> (32 - PointerListLen * 2);
-    std::cout << dna_w.size() << endl;
-    RHT db(dna_w.size());
-
-
-    for (size_t i=0; i<dna_w.size(); ++i)
-    {   
-        tmp = (tmp << 2) | get_c[dna_w[i]];
-        tar = tmp & MASK;
-        if (i>=PointerListLen - 1)
-        {
-            //if i > window NO.1
-            if (i > WindowListLen / 2 && ((i - WindowListLen / 2) % WindowListLen + 1 >= PointerListLen))
-            {
-                if (i % WindowListLen + 1>= PointerListLen)
-                {
-                    if ((i /  WindowListLen) * 2 < 2 * ((i - WindowListLen / 2 ) / WindowListLen) + 1)
-                    {
-                        db.link_string(tar, (i / WindowListLen) * 2);
-                        db.link_string(tar, 2 * ((i- WindowListLen / 2 ) / WindowListLen) + 1);
-                    }
-                    else
-                    {
-                        db.link_string(tar, 2 * ((i - WindowListLen / 2 ) / WindowListLen) + 1);
-                        db.link_string(tar, (i / WindowListLen) * 2);
-                    }
-                }
-                else 
-                    db.link_string(tar,2 * ((i - WindowListLen / 2 ) / WindowListLen) + 1);
-            }
-            else if (i % WindowListLen + 1>= PointerListLen)
-            {
-                    db.link_string(tar, (i / WindowListLen) * 2);
-            }
-
-        }
-    } 
-
-    db.create_p_w();
-    db.write_hash(pout);
-    db.write_hash_test(out);
-    // db.write_hash_out(pout);
-    fclose(pout);
-    
-    inf.close();
 
     printf("Time used = %.2f\n",  (double)clock() / CLOCKS_PER_SEC);
 

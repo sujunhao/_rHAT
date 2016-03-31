@@ -11,7 +11,7 @@
 #include "alignment.h"
 using namespace std;
 
-#define PRINTLOG
+// #define PRINTLOG
 
 typedef struct window {
     uint32_t index_of_W;
@@ -31,6 +31,12 @@ typedef struct window_cnt {
         return cnt > w.cnt;
     }
 }WINDOW_CNT;
+
+typedef struct window_node {
+    uint32_t index_of_W, index_of_R;
+    size_t len;
+}WINDOW_NODE;
+
 
 int main(int argc, char** argv) 
 { 
@@ -60,7 +66,7 @@ int main(int argc, char** argv)
     FILE *inRHT;
     inRef.open("E.coli.fa");
     inRead.open("dna_read");
-    outt.open("outt");
+    outt.open("outz");
     out = fopen("out", "wb");
     inRHT = fopen("out_RHT", "rb");
 
@@ -83,6 +89,7 @@ int main(int argc, char** argv)
     //the hit window number that will go to alignment of each read
     const uint32_t full = 3;
     uint32_t hit_w[full];
+    uint32_t tmp = 0, tar;
 
     while (inRead >> read_m)
     {
@@ -92,10 +99,11 @@ int main(int argc, char** argv)
         inRead >> read_x;
         // outt << read << endl;
 
+        RHT rrht(read.size());
         bool reverse = 0;
         while (true)
         {
-            //-----------------------------------step 1 find hit windows
+            //-----------------------------------step 1 find hit windows  (tot 8s)
             size_t read_len = read.size();
             size_t len_up_stream = 0, len_down_stream = 0;
             size_t theLen = WindowListLen / 2;
@@ -112,24 +120,29 @@ int main(int argc, char** argv)
                 theLen = read_len;
             }
 
-            uint32_t tmp = 0, tar;
+            // outt << read.substr(len_up_stream, theLen) << endl;
+
+            //Hwin is the first heap to set window priority_queue
             priority_queue<WINDOW> Hwin;
             WINDOW w, w_tmp;
+            tmp = 0;
             for (size_t i=len_up_stream; i < len_up_stream + theLen; ++i)
             {
                 tmp = (tmp << 2) | get_c[read[i]];
                 tar = tmp & MASK;
                 if (i - len_up_stream >= PointerListLen - 1)
                 {
-                    if (rht.P[tar] && rht.P[tar+1] && rht.P[tar] > rht.P[tar+1])
+                    if (rht.P[tar] && rht.P[tar+1] && rht.P[tar+1] > rht.P[tar])
                     {
-                        w.index_of_W = rht.W[rht.P[tar]];
+                        w.index_of_W = rht.W[rht.P[tar] - 1];
+                        // outt << read_m << " " << w.index_of_W << endl;
                         w.a = rht.P[tar] + 1;
                         w.b = rht.P[tar+1];
                         Hwin.push(w);
                     }
                 }
             }
+            //Hwin_cnt is the second heap to count window hit number
             priority_queue<WINDOW_CNT> Hwin_cnt;
             WINDOW_CNT wc;
             uint32_t last = w.index_of_W, thecnt = 0;
@@ -140,7 +153,7 @@ int main(int argc, char** argv)
                 Hwin.pop();
                 if (w.b > w.a)
                 {
-                    w_tmp.index_of_W = w.index_of_W;
+                    w_tmp.index_of_W = rht.W[w.a - 1];
                     w_tmp.a = w.a + 1;
                     w_tmp.b = w.b;
                     Hwin.push(w_tmp);
@@ -175,10 +188,76 @@ int main(int argc, char** argv)
 
            
             //-----------------------------------step 2 create read hash table
+            tmp = 0;
+            rrht.clear();
+            for (size_t i=0; i < read.size(); ++i)
+            {
+                tmp = (tmp << 2) | get_c[read[i]];
+                tar = tmp & MASK;
+                if (i >= PointerListLen - 1)
+                {
+                    rrht.link_string(tar, i);
+                }
+            }
+            rrht.sort_pw();
 
-            //-----------------------------------for each window hit, process to struct main alignment body
+            //-----------------------------------step 3 for each window hit do alignment
+            for (size_t z=0; z<full && z<1; ++z)
+            {
+                //-----------------------------------struct window and read main body
+                size_t window_up, window_down;
+                window_up = ( hit_w[z] * (WindowListLen / 2) >= len_up_stream ) ? ( hit_w[z] * (WindowListLen / 2) - len_up_stream ) : (0);
+                window_down = ( hit_w[z] * (WindowListLen / 2) + WindowListLen + len_down_stream <= dna_f.size() ) ? ( hit_w[z] * (WindowListLen / 2) + WindowListLen + len_down_stream ) : (dna_f.size());
+                outt << dna_f.substr(window_up, window_down - window_up) << endl;
+
+                // struct graph node
+                uint32_t d;
+                size_t node_i=0;
+                WINDOW_NODE *wd, wd_tmp;
+                wd = new WINDOW_NODE[window_down - window_up + 1];
+                tmp = 0;
+                for (size_t i=window_up; i < window_down; ++i)
+                {
+                    tmp = (tmp << 2) | get_c[dna_f[i]];
+                    tar = tmp & MASK;
+                    if (i - window_up >= PointerListLen - 1)
+                    {
+                        //if find window & read match l-mer
+                        d = rrht.search(tar);
+                        if (d)
+                        {
+                            // outt << to_string(tar) << " " << d << endl;
+                            while ((rrht.PW[d-1] >> 32) == tar)
+                            {
+                                wd_tmp.index_of_W = i - window_up;
+                                wd_tmp.index_of_R = rrht.PW[d-1];
+                                wd_tmp.len = PointerListLen;
+                                ++d;
+                                //if overlap
+                                if (node_i && i > wd[node_i-1].index_of_W && (i - wd[node_i-1].index_of_W) == wd[node_i-1].len - PointerListLen + 1)
+                                {
+                                    ++wd[node_i-1].len;
+                                    continue;
+                                }
+                                wd[node_i] = wd_tmp;
+                                // outt << wd[node_i].index_of_W << " " << wd[node_i].index_of_R << " " << wd[node_i].len << " " << read.substr(wd[node_i].index_of_R, wd[node_i].len) << endl; 
+                                ++node_i;
+                            }
+                        }
+                    }
+                }
+
+                for (size_t i = 0; i<node_i; ++i)
+                {
+                    outt << wd[i].index_of_W << " " << wd[i].index_of_R << " " << wd[i].len << " " << read.substr(wd[i].index_of_R, wd[i].len) << endl; 
+                }
+
+                delete [] wd;
 
                 //-----------------------------------use global & semiglobal alignment to struct alignment and get sroce
+                
+            }
+
 
 
             if (reverse == 1) break;
