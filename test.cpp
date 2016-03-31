@@ -3,188 +3,207 @@
 #include <cstdio>
 #include <algorithm>
 #include <string>
-#include <bitset>
+#include <sstream>
 #include <queue>
-#include <map>
 #include <unistd.h>
 #include <stdint.h>
-// #include "global_alignment.h"
+#include "RHT.h"
+#include "alignment.h"
 using namespace std;
 
-size_t PointerListLen = 11;
-size_t WindowListLen = 2048;
+#define PRINTLOG
 
-uint32_t get_c[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
-                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
-                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
-                    0, 0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
-                    3};
+typedef struct window {
+    uint32_t index_of_W;
+    size_t a, b;
 
-uint32_t MASK = 0xffffffff;
-#define BASE_MASK 0x3
-
-enum
-{
-    BASE_A = 0x0,
-    BASE_C = 0x1,
-    BASE_G = 0x2,
-    BASE_T = 0x3,
-};
-
-string to_string(uint32_t bb)
-{
-    uint32_t bitnum = bb, shift, base, mask, bit_len = PointerListLen;
-    string s(bit_len, 0);
-    for (size_t i = 0; i < bit_len; i++)
+    bool operator<(const window& w) const
     {
-        shift = 2*bit_len-2-2*(i%(bit_len));
-        mask = BASE_MASK << shift;
-        base = (bitnum & mask) >> shift;
+        return index_of_W >= w.index_of_W;
+    }
+}WINDOW;
 
-        switch (base)
+typedef struct window_cnt {
+    uint32_t index_of_W;
+    size_t cnt;
+    bool operator<(const window_cnt& w) const
+    {
+        return cnt > w.cnt;
+    }
+}WINDOW_CNT;
+
+int main(int argc, char** argv) 
+{ 
+    int c;
+    opterr = 0;
+    while ((c = getopt (argc, argv, "p:w:")) != -1) 
+    {
+        switch (c)
         {
-            case BASE_A:
-                s[i] = 'A';
+            case 'p':
+                if (optarg)
+                    PointerListLen = atol(optarg);
                 break;
-            case BASE_C:
-                s[i] = 'C';
-                break;
-            case BASE_G:
-                s[i] = 'G';
-                break;
-            case BASE_T:
-                s[i] = 'T';
+            case 'w':
+                if (optarg)
+                    WindowListLen = atol(optarg);
                 break;
             default:
-                std::cout << "invalid bitnum\n";
-                return "";
+                abort ();
         }
     }
-    return s;
-}
+    std::cout << PointerListLen << " " << WindowListLen << "\n";
 
-class RHT
-{
-    private:
-        size_t pw_len, p_len, w_len;
-        uint32_t *P, *W;
-        uint64_t *PW;
-        uint32_t index, w_index;
-        uint64_t tmp;
-    public:
-        RHT(size_t k)
+    ifstream inRef, inRead;
+    ofstream outt;
+    FILE *out;
+    FILE *inRHT;
+    inRef.open("E.coli.fa");
+    inRead.open("dna_read");
+    outt.open("outt");
+    out = fopen("out", "wb");
+    inRHT = fopen("out_RHT", "rb");
+
+    //-----------------------------------get dna_ref string
+    string dna_name, dna_s, dna_f;
+    getline(inRef, dna_name);
+    while (inRef >> dna_s) dna_f.append(dna_s);
+
+    //-----------------------------------get hash table
+    RHT rht(dna_f.size());
+    rht.read_hash(inRHT);
+    cout << "succeed load RHT\n";
+    printf("Time used = %.2f\n",  (double)clock() / CLOCKS_PER_SEC);
+    // rht.write_hash_test(outt);
+
+    //-----------------------------------get read
+    string read_m, read, read_x;
+    //init mask
+    MASK = MASK >> (32 - PointerListLen * 2);
+    //the hit window number that will go to alignment of each read
+    const uint32_t full = 3;
+    uint32_t hit_w[full];
+
+    while (inRead >> read_m)
+    {
+        //-----------------------------------get each read seq, mark, and info
+        inRead >> read;
+        inRead >> read_m;
+        inRead >> read_x;
+        // outt << read << endl;
+
+        bool reverse = 0;
+        while (true)
         {
-            p_len = (size_t)1 << (PointerListLen << 1) + 1;
-            w_len = k << 1;
-            pw_len = w_len;
-
-            P = new uint32_t[p_len];
-            W = new uint32_t[w_len];
-            PW = new uint64_t[pw_len];
-
-            index = 0;
-            w_index = 0;
-        }
-        ~RHT()
-        {
-            delete [] P;
-            delete [] W;
-            delete [] PW;
-        }
-
-        void link_string(uint32_t p_index, uint32_t w_index)
-        {
-            tmp = p_index;
-            tmp = tmp << 32;
-            tmp = tmp | w_index;
-            // std::cout << std::bitset<64>(tmp) << " " << std::bitset<32>(p_index) << " " << std::bitset<32>(w_index) << std::endl;
-            PW[index++] = tmp;
-        }
-
-        void create_p_w()
-        {
-            std::sort(PW, PW+index);
-            // memset(P, 0, sizeof(P));
-            uint32_t p_tmp, last;
-            w_index=0;
-            p_tmp = PW[0] >> 32;
-            last = p_tmp;
-            P[p_tmp] = w_index + 1;
-            W[w_index] = PW[0];
-            ++w_index;
-            // std::cout << std::bitset<64>(PW[0]) << " " << std::bitset<32>(p_tmp) << " " << std::bitset<32>(W[w_index])  << std::endl;
-            for (size_t i = 1; i<index; ++i)
+            //-----------------------------------step 1 find hit windows
+            size_t read_len = read.size();
+            size_t len_up_stream = 0, len_down_stream = 0;
+            size_t theLen = WindowListLen / 2;
+            //from len_up_stream to theLen is the center string of read
+            if (read_len * 2 > WindowListLen)
             {
-                if (PW[i]==PW[i-1]) continue;
-                p_tmp = PW[i] >> 32;
-                if (p_tmp == last) 
-                {
-                    W[w_index++] = PW[i];
-                    continue;
-                }
-                
-                P[last+1] = w_index+1;
-                P[p_tmp] = w_index+1;
-                last = p_tmp;
-                W[w_index++] = PW[i];
-                
+                len_up_stream = read_len / 2 - theLen / 2;
+                len_down_stream = read_len - len_up_stream - theLen;
             }
-            P[last+1] = w_index+1;
-        }
+            else
+            {   
+                len_up_stream = 0;
+                len_down_stream = 0;
+                theLen = read_len;
+            }
 
-        void write_hash(FILE *out)
-        {
-            // fprintf(out, "%lu|", (unsigned long)w_index);
-            fwrite(P, sizeof(uint32_t), p_len, out);
-            fwrite(&w_index, sizeof(uint32_t), 1, out);
-            std::cout << w_index << std::endl;
-            fwrite(W, sizeof(uint32_t), w_index, out);
-        }
-
-        void write_hash_test(std::ofstream &out)
-        {
-            for (size_t i = 0; i<p_len-1; ++i)
+            uint32_t tmp = 0, tar;
+            priority_queue<WINDOW> Hwin;
+            WINDOW w, w_tmp;
+            for (size_t i=len_up_stream; i < len_up_stream + theLen; ++i)
             {
-                if (P[i] > 0 && P[i+1] > 0 && P[i+1] > P[i])
+                tmp = (tmp << 2) | get_c[read[i]];
+                tar = tmp & MASK;
+                if (i - len_up_stream >= PointerListLen - 1)
                 {
-                    // out << std::bitset<32>(i);
-                    out << to_string((uint32_t)i);
-
-                    for (size_t j = P[i]-1; j < P[i+1]-1; ++j)
+                    if (rht.P[tar] && rht.P[tar+1] && rht.P[tar] > rht.P[tar+1])
                     {
-                        out << " " << W[j];
+                        w.index_of_W = rht.W[rht.P[tar]];
+                        w.a = rht.P[tar] + 1;
+                        w.b = rht.P[tar+1];
+                        Hwin.push(w);
                     }
-                    out << "\n";
                 }
             }
+            priority_queue<WINDOW_CNT> Hwin_cnt;
+            WINDOW_CNT wc;
+            uint32_t last = w.index_of_W, thecnt = 0;
+            while (!Hwin.empty())
+            {
+                w = Hwin.top();
+                //do Hwin pop process
+                Hwin.pop();
+                if (w.b > w.a)
+                {
+                    w_tmp.index_of_W = w.index_of_W;
+                    w_tmp.a = w.a + 1;
+                    w_tmp.b = w.b;
+                    Hwin.push(w_tmp);
+                }
+
+                //if a new window num appear, push into hwin_cnt
+                if (w.index_of_W != last)
+                {
+                    wc.index_of_W = last;
+                    wc.cnt = thecnt;
+                    Hwin_cnt.push(wc);
+                    if (Hwin_cnt.size() > full) Hwin_cnt.pop();
+                    last = w.index_of_W;
+                    thecnt = 1;
+                }
+                else 
+                {
+                    ++thecnt;
+                }
+            }
+            uint32_t z = full;
+            while(!Hwin_cnt.empty())
+            {
+                hit_w[--z] = Hwin_cnt.top().index_of_W;
+                
+                #ifdef PRINTLOG
+                //print the hit window and their hit times
+                    outt << Hwin_cnt.top().cnt << " " << Hwin_cnt.top().index_of_W << endl;
+                #endif
+                Hwin_cnt.pop();
+            }
+
+           
+            //-----------------------------------step 2 create read hash table
+
+            //-----------------------------------for each window hit, process to struct main alignment body
+
+                //-----------------------------------use global & semiglobal alignment to struct alignment and get sroce
+
+
+            if (reverse == 1) break;
+            reverse = 1;
         }
-        void read_hash(FILE *in)
-        {
-            // unsigned long d;
-            // fscanf(in, "%lu|", &d);
-            // w_index = d;
-            fread(P, sizeof(uint32_t), p_len, in);
-            fread(&w_index, sizeof(uint32_t), 1, in);
-            std::cout << w_index << std::endl;
-            fread(W, sizeof(uint32_t), w_index, in);
-        }
-};
 
-int main()
-{
+        //-----------------------------------out put the read best alignment
 
-	RHT rht(4938920);
-	FILE *pout;
-    pout = fopen("out_R", "rb");
-    ofstream out;
-    out.open("outtt");
+    }
 
-	rht.read_hash(pout);
-	rht.write_hash_test(out);
+    
+    
+
+    
+
+    inRef.close();
+    inRead.close();
+    outt.close();
+    fclose(out);
+    fclose(inRHT);
 
 
-	out.close();
-	fclose(pout);
+        
 
-	return 0;
+
+    printf("Time used = %.2f\n",  (double)clock() / CLOCKS_PER_SEC);
+    return 0;
 }

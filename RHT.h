@@ -257,11 +257,12 @@ class RHT
 {
     private:
         size_t pw_len, p_len, w_len;
-        uint32_t *P, *W;
         uint64_t *PW;
         uint32_t index, w_index;
         uint64_t tmp;
     public:
+        uint32_t *P, *W;
+        
         RHT(size_t k)
         {
             p_len = (size_t)1 << (PointerListLen << 1) + 1;
@@ -281,6 +282,7 @@ class RHT
             delete [] W;
             delete [] PW;
         }
+
 
         void link_string(uint32_t p_index, uint32_t w_index)
         {
