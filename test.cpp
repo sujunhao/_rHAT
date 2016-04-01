@@ -8,7 +8,7 @@
 #include <unistd.h>
 #include <stdint.h>
 #include "RHT.h"
-#include "alignment.h"
+#include "DAG.h"
 using namespace std;
 
 // #define PRINTLOG
@@ -31,12 +31,6 @@ typedef struct window_cnt {
         return cnt > w.cnt;
     }
 }WINDOW_CNT;
-
-typedef struct window_node {
-    uint32_t index_of_W, index_of_R;
-    size_t len;
-}WINDOW_NODE;
-
 
 int main(int argc, char** argv) 
 { 
@@ -211,15 +205,9 @@ int main(int argc, char** argv)
                 // outt << dna_f.substr(window_up, window_down - window_up) << endl;
 
                 // struct graph node include the first and last node
-                uint32_t d;
-                size_t node_i=0;
-                WINDOW_NODE *wd, wd_tmp;
-                wd = new WINDOW_NODE[window_down - window_up + 3];
+                DAG dag(window_down - window_up + 3);
                 //the first node
-                wd_tmp.index_of_W = window_up;
-                wd_tmp.index_of_R = PointerListLen - 1;
-                wd_tmp.len = 0;
-                wd[node_i++] = wd_tmp;
+                dag.add_node(window_up, PointerListLen - 1, 0);
                 tmp = 0;
                 for (size_t i=window_up; i < window_down; ++i)
                 {
@@ -228,63 +216,39 @@ int main(int argc, char** argv)
                     if (i - window_up >= PointerListLen - 1)
                     {
                         //if find window & read match l-mer
+                        uint32_t d;
                         d = rrht.search(tar);
                         if (d)
                         {
                             // outt << to_string(tar) << " " << d << endl;
                             while ((rrht.PW[d-1] >> 32) == tar)
                             {
-                                //i is tha match window string last index
-                                wd_tmp.index_of_W = i;
-                                wd_tmp.index_of_R = rrht.PW[d-1];
-                                wd_tmp.len = PointerListLen;
-                                ++d;
                                 //if overlap
-                                if (node_i > 1 && i > wd[node_i-1].index_of_W && (i - wd[node_i-1].index_of_W) == wd[node_i-1].len - PointerListLen + 1)
+                                if (dag.check_node(i))
                                 {
-                                    ++wd[node_i-1].len;
+                                    ++d;
                                     continue;
                                 }
-                                wd[node_i] = wd_tmp;
+                                dag.add_node(i, rrht.PW[d-1], PointerListLen);
+                                ++d;
                                 // outt << wd[node_i].index_of_W << " " << wd[node_i].index_of_R << " " << wd[node_i].len << " " << read.substr(wd[node_i].index_of_R, wd[node_i].len) << endl; 
-                                ++node_i;
                             }
                         }
                     }
                 }
-                wd_tmp.index_of_W = window_down;
-                wd_tmp.index_of_R = read.size();
-                wd_tmp.len = 0;
-                wd[node_i++] = wd_tmp;
-                // for (size_t i = 0; i<node_i; ++i)
-                // {
-                //     outt << wd[i].index_of_W << " " << wd[i].index_of_R << " " << wd[i].len << " " << read.substr(wd[i].index_of_R + 1 - PointerListLen, wd[i].len) << " " << dna_f.substr(wd[i].index_of_W + 1 - PointerListLen, wd[i].len)<< endl; 
-                // }
-                // outt << endl;
+                dag.add_node(window_down, read.size(), 0);
 
+                //dag.print_log(outt);
 
                 //linking nodes edge
-                // uint32_t t_wait = 1024;
-                // uint32_t iw, ir, il, jw, jr;
-                // for (size_t i=0; i<node_i-1; ++i)
-                // {
-                //     iw = wd[i].index_of_W;
-                //     ir = wd[i].index_of_R;
-                //     il = wd[i].len;
-                //     for (size_t j=i+1; j<node_i; ++j)
-                //     {
-                //         jw = wd[j].index_of_W;
-                //         jr = wd[j].index_of_R;
-                //         if (jw >= il + iw && jr >= il + ir && jr <= ir + il + t_wait)
-                //         {
-
-                //         }
-                //     }
-                // }
+                //node matrix 
+                dag.create_matrix();
+                //do use node matrix to run dp
+                dag.find_path();
 
                 //-----------------------------------use global & semiglobal alignment to struct alignment and get sroce
+                dag.do_alignment(dna_f, read, outt);
                 
-                delete [] wd;
             }
 
 
