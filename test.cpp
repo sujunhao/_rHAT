@@ -208,13 +208,18 @@ int main(int argc, char** argv)
                 size_t window_up, window_down;
                 window_up = ( hit_w[z] * (WindowListLen / 2) >= len_up_stream ) ? ( hit_w[z] * (WindowListLen / 2) - len_up_stream ) : (0);
                 window_down = ( hit_w[z] * (WindowListLen / 2) + WindowListLen + len_down_stream <= dna_f.size() ) ? ( hit_w[z] * (WindowListLen / 2) + WindowListLen + len_down_stream ) : (dna_f.size());
-                outt << dna_f.substr(window_up, window_down - window_up) << endl;
+                // outt << dna_f.substr(window_up, window_down - window_up) << endl;
 
-                // struct graph node
+                // struct graph node include the first and last node
                 uint32_t d;
                 size_t node_i=0;
                 WINDOW_NODE *wd, wd_tmp;
-                wd = new WINDOW_NODE[window_down - window_up + 1];
+                wd = new WINDOW_NODE[window_down - window_up + 3];
+                //the first node
+                wd_tmp.index_of_W = window_up;
+                wd_tmp.index_of_R = PointerListLen - 1;
+                wd_tmp.len = 0;
+                wd[node_i++] = wd_tmp;
                 tmp = 0;
                 for (size_t i=window_up; i < window_down; ++i)
                 {
@@ -229,12 +234,13 @@ int main(int argc, char** argv)
                             // outt << to_string(tar) << " " << d << endl;
                             while ((rrht.PW[d-1] >> 32) == tar)
                             {
-                                wd_tmp.index_of_W = i - window_up;
+                                //i is tha match window string last index
+                                wd_tmp.index_of_W = i;
                                 wd_tmp.index_of_R = rrht.PW[d-1];
                                 wd_tmp.len = PointerListLen;
                                 ++d;
                                 //if overlap
-                                if (node_i && i > wd[node_i-1].index_of_W && (i - wd[node_i-1].index_of_W) == wd[node_i-1].len - PointerListLen + 1)
+                                if (node_i > 1 && i > wd[node_i-1].index_of_W && (i - wd[node_i-1].index_of_W) == wd[node_i-1].len - PointerListLen + 1)
                                 {
                                     ++wd[node_i-1].len;
                                     continue;
@@ -246,16 +252,39 @@ int main(int argc, char** argv)
                         }
                     }
                 }
+                wd_tmp.index_of_W = window_down;
+                wd_tmp.index_of_R = read.size();
+                wd_tmp.len = 0;
+                wd[node_i++] = wd_tmp;
+                // for (size_t i = 0; i<node_i; ++i)
+                // {
+                //     outt << wd[i].index_of_W << " " << wd[i].index_of_R << " " << wd[i].len << " " << read.substr(wd[i].index_of_R + 1 - PointerListLen, wd[i].len) << " " << dna_f.substr(wd[i].index_of_W + 1 - PointerListLen, wd[i].len)<< endl; 
+                // }
+                // outt << endl;
 
-                for (size_t i = 0; i<node_i; ++i)
-                {
-                    outt << wd[i].index_of_W << " " << wd[i].index_of_R << " " << wd[i].len << " " << read.substr(wd[i].index_of_R, wd[i].len) << endl; 
-                }
 
-                delete [] wd;
+                //linking nodes edge
+                // uint32_t t_wait = 1024;
+                // uint32_t iw, ir, il, jw, jr;
+                // for (size_t i=0; i<node_i-1; ++i)
+                // {
+                //     iw = wd[i].index_of_W;
+                //     ir = wd[i].index_of_R;
+                //     il = wd[i].len;
+                //     for (size_t j=i+1; j<node_i; ++j)
+                //     {
+                //         jw = wd[j].index_of_W;
+                //         jr = wd[j].index_of_R;
+                //         if (jw >= il + iw && jr >= il + ir && jr <= ir + il + t_wait)
+                //         {
+
+                //         }
+                //     }
+                // }
 
                 //-----------------------------------use global & semiglobal alignment to struct alignment and get sroce
                 
+                delete [] wd;
             }
 
 
