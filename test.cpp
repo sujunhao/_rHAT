@@ -85,6 +85,7 @@ int main(int argc, char** argv)
     uint32_t hit_w[full];
     uint32_t tmp = 0, tar;
 
+    const char *c_dna_f = dna_f.c_str();
     while (inRead >> read_m)
     {
         //-----------------------------------get each read seq, mark, and info
@@ -93,6 +94,7 @@ int main(int argc, char** argv)
         inRead >> read_x;
         // outt << read << endl;
 
+        const char *c_read = read.c_str();
         RHT rrht(read.size());
         bool reverse = 0;
         while (true)
@@ -190,7 +192,7 @@ int main(int argc, char** argv)
                 tar = tmp & MASK;
                 if (i >= PointerListLen - 1)
                 {
-                    rrht.link_string(tar, i);
+                    rrht.link_string(tar, i - PointerListLen + 1);
                 }
             }
             rrht.sort_pw();
@@ -202,7 +204,7 @@ int main(int argc, char** argv)
                 size_t window_up, window_down;
                 window_up = ( hit_w[z] * (WindowListLen / 2) >= len_up_stream ) ? ( hit_w[z] * (WindowListLen / 2) - len_up_stream ) : (0);
                 window_down = ( hit_w[z] * (WindowListLen / 2) + WindowListLen + len_down_stream <= dna_f.size() ) ? ( hit_w[z] * (WindowListLen / 2) + WindowListLen + len_down_stream ) : (dna_f.size());
-                // outt << dna_f.substr(window_up, window_down - window_up) << endl;
+                outt << dna_f.substr(window_up, window_down - window_up) << endl;
 
                 // struct graph node include the first and last node
                 DAG dag(window_down - window_up + 3);
@@ -229,14 +231,14 @@ int main(int argc, char** argv)
                                     ++d;
                                     continue;
                                 }
-                                dag.add_node(i, rrht.PW[d-1], PointerListLen);
+                                dag.add_node(i - PointerListLen + 1, rrht.PW[d-1], PointerListLen);
                                 ++d;
                                 // outt << wd[node_i].index_of_W << " " << wd[node_i].index_of_R << " " << wd[node_i].len << " " << read.substr(wd[node_i].index_of_R, wd[node_i].len) << endl; 
                             }
                         }
                     }
                 }
-                dag.add_node(window_down, read.size(), 0);
+                dag.add_node(window_down - PointerListLen + 1, read.size(), 0);
 
                 //dag.print_log(outt);
 
@@ -247,7 +249,9 @@ int main(int argc, char** argv)
                 dag.find_path();
 
                 //-----------------------------------use global & semiglobal alignment to struct alignment and get sroce
-                dag.do_alignment(dna_f, read, outt);
+                dag.print_log(dna_f, read, outt);
+
+                // dag.do_alignment(c_dna_f, window_up, window_down - PointerListLen + 1, c_read, out);
                 
             }
 
