@@ -86,6 +86,10 @@ int main(int argc, char** argv)
     uint32_t tmp = 0, tar;
 
     const char *c_dna_f = dna_f.c_str();
+
+    char sss[10000];
+    char thesss[10000];
+
     while (inRead >> read_m)
     {
         //-----------------------------------get each read seq, mark, and info
@@ -305,23 +309,31 @@ int main(int argc, char** argv)
                     dag.print_log(dna_f, read, outt);
                 #endif
 
-                string ss(read_len+100, 0);
-                ss.clear();
-                // dag.do_alignment(dna_f, read, outt);
                 double t;
-                t = dag.do_alignment(dna_f, window_up, window_down, read, ss, outt);
+                // string ss(read_len+100, 0);
+                // ss.clear();
+                // // dag.do_alignment(dna_f, read, outt);
+                // t = dag.do_alignment(dna_f, window_up, window_down, read, ss, outt);
+
+                strcpy(sss, "");
+                t = dag.do_alignment(const_cast<char*>(c_dna_f), window_up, window_down, const_cast<char*>(c_read), read_len, sss, out);
+
                 if ((t) > score)
                 {
                     score = t;
-                    thess = ss;
+
+                    memset(thesss, 0, sizeof(thesss));
+                    strcpy(thesss, sss);
+                    
+                    // thess = ss;
                 }
                 else break;
 
                 if (score < score_too_low) break;
                 // dag.do_alignment(c_dna_f, window_up, window_down - PointerListLen + 1, c_read, out);
 
-                // if (t <= score_too_low) break;
-                // if (score >= score_enough) break;   
+                if (t <= score_too_low) break;
+                if (score >= score_enough) break;   
             }
 
             if (score >= score_enough) break;
@@ -335,7 +347,8 @@ int main(int argc, char** argv)
         fprintf(out, "%s\n", read_m.c_str());
         fprintf(out, "%d\n", reverse);
         fprintf(out, "%.0lf\n", score);
-        fprintf(out, "%s", thess.c_str());
+        fprintf(out, "%s\n", thesss);
+        // fprintf(out, "%s", thess.c_str());
 
 
         // printf("%.0lf\n", score);
