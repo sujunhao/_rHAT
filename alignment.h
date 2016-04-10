@@ -23,6 +23,8 @@ double zero = 1e-16;
 
 double get_alignment(string &s1, size_t last_w, size_t lw, string &s2, size_t last_r, size_t lr, size_t si, size_t sj, size_t ei, size_t ej, string &ss)
 {
+    // std::cout << s1.substr(last_w, lw) << '\n' << s2.substr(last_r, lr) << '\n';
+
     size_t offset_1 = last_w, offset_2 = last_r;
     size_t n_s1 = lw, n_s2 = lr, n_s;
     double **dp;
@@ -87,11 +89,15 @@ double get_alignment(string &s1, size_t last_w, size_t lw, string &s2, size_t la
         }
     }
 
+    // printf("%lu 2333sadasd\n", (unsigned long)index_v);
+    //if index_v == 0 will error
+    if (index_v==0) return 0;
     size_t i=index_v-1, m=offset_1+xi, n=offset_2+xj;
     int state=-1;
     char snum[100];
     char sstate[]="MDI";
     unsigned long cnt=0;
+
     for (; i>=0; --i) 
     {
         // printf(i==0?"%d\n":"%d ", v[i]);
@@ -110,6 +116,7 @@ double get_alignment(string &s1, size_t last_w, size_t lw, string &s2, size_t la
         }
         if (i==0) break;
         // printf("%d ", v[i]);
+        // printf("%lu 2333sadasd\n", (unsigned long)i);
     }
     if (state>=0)
     {
@@ -143,7 +150,6 @@ double get_alignment(string &s1, size_t last_w, size_t lw, string &s2, size_t la
     //     if (i==0) break;
     //     // printf("%d ", v[i]);
     // }
-    // std::cout << s1.substr(last_w, lw) << '\n' << s2.substr(last_r, lr) << '\n';
     // std::cout << s_1 << '\n' << s_2 << '\n';
 
     for (size_t i=0; i<max_n; ++i) delete [] dp[i];

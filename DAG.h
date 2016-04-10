@@ -99,9 +99,9 @@ public:
     	while (thenode != 0)
     	{
     		p_tmp = thenode;
-    		for (size_t i = 0; i< node_i; ++i)
+    		for (size_t i = 0; i< p_tmp; ++i)
     		{
-    			if (i==thenode) continue;
+    			if (i==thenode || V[i][thenode]==0) continue;
     			if (dp[thenode] == wd[thenode].len + dp[i])
     			{
     				thenode = i;
@@ -112,45 +112,6 @@ public:
     		}
     		if(thenode == p_tmp) break;
     	}
-    }
-
-    uint32_t do_alignment(string& dna_f, string&  read, ofstream& outt)
-    {
-    	for (size_t o = p_index, i; o>0; --o)
-    	{
-            if (o==p_index) continue;
-    		i = path[o-1];
-            outt << wd[i].index_of_W << " " << wd[i].index_of_R << " " << wd[i].len << " " << read.substr(wd[i].index_of_R + 1 - PointerListLen, wd[i].len) << " " << dna_f.substr(wd[i].index_of_W + 1 - PointerListLen, wd[i].len)<< endl; 
-    	}
-    	outt<< "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n";
-
-        // size_t last_w=PointerListLen - 1, last_r=PointerListLen-1;
-        // for (size_t o = p_index, i; o>0; --o)
-        // {
-        //     if (o==p_index) continue;
-        //     i = path[o-1];
-
-        //     w = wd[i].index_of_W;
-        //     r = wd[i].index_of_R;
-        //     l = wd[i].len;
-
-        //     if (w!=last_w || r!=last_r)
-        //     {
-        //         if (w!=last_w && r!=last_r)
-        //         {
-
-        //         }
-        //         else if(w==last_w)
-        //         {
-
-        //         }
-        //         else if(r==last_r)
-        //         {
-
-        //         }
-        //     }
-        //     outt << wd[i].index_of_W << " " << wd[i].index_of_R << " " << wd[i].len << " " << read.substr(wd[i].index_of_R + 1 - PointerListLen, wd[i].len) << " " << dna_f.substr(wd[i].index_of_W + 1 - PointerListLen, wd[i].len)<< endl; 
-        // }
     }
     
     uint32_t do_alignment(string& dna_f, size_t window_up, size_t window_down, string&  read, string&ss, ofstream& outt)
@@ -183,6 +144,8 @@ public:
             last_w = w;
             last_r = r;
         }
+        // printf("2333\n");
+
         for (size_t o = p_index; o>0; --o)
         {
             if (o == p_index) continue;
@@ -197,6 +160,8 @@ public:
             {
                 if (w!=last_w && r!=last_r)
                 {
+                    // printf("%lu %lu %lu %lu\n", (unsigned long)(last_w), (unsigned long)(w), (unsigned long)(last_r), (unsigned long)(r));
+                    // printf("%lu %lu %lu %lu\n", (unsigned long)(last_w - PointerListLen + 1), (unsigned long)(w-last_w), (unsigned long)(last_r - PointerListLen + 1), (unsigned long)(r-last_r));
                     score+=get_alignment(dna_f, last_w - PointerListLen + 1, w-last_w, read, last_r - PointerListLen + 1, r-last_r, 0, 0, w-last_w, r-last_r, ss);
                 }
                 else if(w==last_w)
@@ -225,6 +190,8 @@ public:
             ss.append(snum);
             // outt << wd[i].index_of_W << " " << wd[i].index_of_R << " " << wd[i].len << " " << read.substr(wd[i].index_of_R + 1 - PointerListLen, wd[i].len) << " " << dna_f.substr(wd[i].index_of_W + 1 - PointerListLen, wd[i].len)<< endl; 
         }
+
+        // printf("2333\n");
         if (p_index >= 3)
         {
             w = window_down;

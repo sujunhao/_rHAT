@@ -101,7 +101,7 @@ int main(int argc, char** argv)
         
         double score = -INF, score_enough=100;
         double score_too_low=-100;
-        size_t windown_hit_too_low=100;
+        size_t windown_hit_too_low=100, hit_too_many=500;
         string thess(read_len+WindowListLen, 0);
         thess.clear();
 
@@ -132,7 +132,9 @@ int main(int argc, char** argv)
                     }
                 }
             }
-            outt << read << endl;
+            #ifdef PRINTLOG
+                outt << read << endl;
+            #endif
 
             size_t len_up_stream = 0, len_down_stream = 0;
             size_t theLen = WindowListLen / 2;
@@ -191,10 +193,15 @@ int main(int argc, char** argv)
                 {
                     wc.index_of_W = last;
                     wc.cnt = thecnt;
-                    Hwin_cnt.push(wc);
-                    if (Hwin_cnt.size() > full) Hwin_cnt.pop();
                     last = w.index_of_W;
                     thecnt = 1;
+
+                    if (wc.cnt < hit_too_many) 
+                    {
+                        Hwin_cnt.push(wc);
+                        if (Hwin_cnt.size() > full) Hwin_cnt.pop();
+                        
+                    }
                 }
                 else 
                 {
@@ -247,8 +254,10 @@ int main(int argc, char** argv)
                 size_t window_up, window_down;
                 window_up = ( hit_w[z] * (WindowListLen / 2) >= len_up_stream ) ? ( hit_w[z] * (WindowListLen / 2) - len_up_stream ) : (0);
                 window_down = ( hit_w[z] * (WindowListLen / 2) + WindowListLen + len_down_stream <= dna_f.size() ) ? ( hit_w[z] * (WindowListLen / 2) + WindowListLen + len_down_stream ) : (dna_f.size());
-                // outt << dna_f.substr(window_up, window_down - window_up) << endl;
-
+                #ifdef PRINTLOG
+                outt << "\n" << window_up << endl;
+                outt << dna_f.substr(window_up, window_down - window_up) << endl;
+                #endif
                 // struct graph node include the first and last node
                 DAG dag(window_down - window_up + 3);
                 //the first node
@@ -292,7 +301,9 @@ int main(int argc, char** argv)
                 dag.find_path();
 
                 //-----------------------------------use global & semiglobal alignment to struct alignment and get sroce
-                // dag.print_log(dna_f, read, outt);
+                #ifdef PRINTLOG
+                    dag.print_log(dna_f, read, outt);
+                #endif
 
                 string ss(read_len+100, 0);
                 ss.clear();
@@ -321,9 +332,14 @@ int main(int argc, char** argv)
 
 
         //-----------------------------------out put the read best alignment
+        fprintf(out, "%s\n", read_m.c_str());
         fprintf(out, "%d\n", reverse);
         fprintf(out, "%.0lf\n", score);
         fprintf(out, "%s", thess.c_str());
+
+
+        // printf("%.0lf\n", score);
+        // printf("Time used = %.2f\n",  (double)clock() / CLOCKS_PER_SEC);
 
     }
 
