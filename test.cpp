@@ -60,7 +60,7 @@ int main(int argc, char** argv)
     FILE *inRHT;
     inRef.open("E.coli.fa");
     inRead.open("dna_read");
-    outt.open("outz");
+    outt.open("outt");
     out = fopen("out", "wb");
     inRHT = fopen("out_RHT", "rb");
 
@@ -95,12 +95,45 @@ int main(int argc, char** argv)
         // outt << read << endl;
 
         const char *c_read = read.c_str();
-        RHT rrht(read.size());
-        bool reverse = 0;
+        bool reverse = false;
+        size_t read_len = read.size();
+        
+        
+        double score = -INF, score_enough=100;
+        double score_too_low=-100;
+        size_t windown_hit_too_low=100;
+        string thess(read_len+WindowListLen, 0);
+        thess.clear();
+
         while (true)
         {
             //-----------------------------------step 1 find hit windows  (tot 8s)
-            size_t read_len = read.size();
+            //Hwin is the first heap to set window priority_queue
+
+            if (reverse)
+            {
+                std::reverse(read.begin(),read.end());
+                for (size_t z = 0; z < read.size(); ++z)
+                {
+                    switch(read[z])
+                    {
+                        case 'A':
+                            read[z] = 'T';
+                            break;
+                        case 'T':
+                            read[z] = 'A';
+                            break;
+                        case 'G':
+                            read[z] = 'C';
+                            break;
+                        case 'C':
+                            read[z] = 'G';
+                            break;    
+                    }
+                }
+            }
+            outt << read << endl;
+
             size_t len_up_stream = 0, len_down_stream = 0;
             size_t theLen = WindowListLen / 2;
             //from len_up_stream to theLen is the center string of read
@@ -115,10 +148,8 @@ int main(int argc, char** argv)
                 len_down_stream = 0;
                 theLen = read_len;
             }
-
             // outt << read.substr(len_up_stream, theLen) << endl;
 
-            //Hwin is the first heap to set window priority_queue
             priority_queue<WINDOW> Hwin;
             WINDOW w, w_tmp;
             tmp = 0;
@@ -170,23 +201,32 @@ int main(int argc, char** argv)
                     ++thecnt;
                 }
             }
-            uint32_t z = full;
+            uint32_t z = full, mx;
             while(!Hwin_cnt.empty())
-            {
-                hit_w[--z] = Hwin_cnt.top().index_of_W;
-                
+            {                
                 #ifdef PRINTLOG
                 //print the hit window and their hit times
                     outt << Hwin_cnt.top().cnt << " " << Hwin_cnt.top().index_of_W << endl;
                 #endif
+                hit_w[--z] = Hwin_cnt.top().index_of_W;
+                if (z==0) 
+                {
+                    mx = Hwin_cnt.top().cnt;
+                }
                 Hwin_cnt.pop();
             }
-
-           
+            
+            if (mx < windown_hit_too_low)
+            {
+                if (reverse) break;
+                reverse = true;
+                continue;
+            }
             //-----------------------------------step 2 create read hash table
+            RHT rrht(read.size());
             tmp = 0;
             rrht.clear();
-            for (size_t i=0; i < read.size(); ++i)
+            for (size_t i=0; i < read_len; ++i)
             {
                 tmp = (tmp << 2) | get_c[read[i]];
                 tar = tmp & MASK;
@@ -198,13 +238,16 @@ int main(int argc, char** argv)
             rrht.sort_pw();
 
             //-----------------------------------step 3 for each window hit do alignment
-            for (size_t z=0; z<full && z<1; ++z)
+            uint32_t last_z=hit_w[0]+5;
+            for (size_t z=0; z<full; ++z)
             {
                 //-----------------------------------struct window and read main body
+                if (abs(last_z-hit_w[z]) <= 1) break;
+                last_z = hit_w[z];
                 size_t window_up, window_down;
                 window_up = ( hit_w[z] * (WindowListLen / 2) >= len_up_stream ) ? ( hit_w[z] * (WindowListLen / 2) - len_up_stream ) : (0);
                 window_down = ( hit_w[z] * (WindowListLen / 2) + WindowListLen + len_down_stream <= dna_f.size() ) ? ( hit_w[z] * (WindowListLen / 2) + WindowListLen + len_down_stream ) : (dna_f.size());
-                outt << dna_f.substr(window_up, window_down - window_up) << endl;
+                // outt << dna_f.substr(window_up, window_down - window_up) << endl;
 
                 // struct graph node include the first and last node
                 DAG dag(window_down - window_up + 3);
@@ -238,7 +281,7 @@ int main(int argc, char** argv)
                         }
                     }
                 }
-                dag.add_node(window_down, read.size(), 0);
+                dag.add_node(window_down, read_len, 0);
 
                 //dag.print_log(outt);
 
@@ -251,21 +294,36 @@ int main(int argc, char** argv)
                 //-----------------------------------use global & semiglobal alignment to struct alignment and get sroce
                 // dag.print_log(dna_f, read, outt);
 
-                string ss(window_down-window_up+3, 0);
+                string ss(read_len+100, 0);
                 ss.clear();
-                dag.do_alignment(dna_f, read, outt);
-                dag.do_alignment(dna_f, window_up, window_down, read, ss, outt);
+                // dag.do_alignment(dna_f, read, outt);
+                double t;
+                t = dag.do_alignment(dna_f, window_up, window_down, read, ss, outt);
+                if ((t) > score)
+                {
+                    score = t;
+                    thess = ss;
+                }
+                else break;
+
+                if (score < score_too_low) break;
                 // dag.do_alignment(c_dna_f, window_up, window_down - PointerListLen + 1, c_read, out);
-                
+
+                // if (t <= score_too_low) break;
+                // if (score >= score_enough) break;   
             }
 
-
-
-            if (reverse == 1) break;
-            reverse = 1;
+            if (score >= score_enough) break;
+            if (reverse) break;
+            reverse = true;
         }
 
+
+
         //-----------------------------------out put the read best alignment
+        fprintf(out, "%d\n", reverse);
+        fprintf(out, "%.0lf\n", score);
+        fprintf(out, "%s", thess.c_str());
 
     }
 
