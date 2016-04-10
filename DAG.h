@@ -160,14 +160,28 @@ public:
         size_t index_ss=0;
         char snum[100];
         memset(snum, 0, sizeof(snum));
-        for (size_t o = p_index, i, r, w, l; o>0; --o)
+        size_t i, w, r, l;
+        if (p_index >= 3)
         {
-            if (o==p_index) continue;
+            i = path[p_index-2];
+            w = wd[i].index_of_W;
+            r = wd[i].index_of_R;
+            if (w!=last_w && r!=last_r)
+            {
+                get_alignment(dna_f, last_w - PointerListLen + 1, w-last_w, read, last_r - PointerListLen + 1, r-last_r, w-last_w, r-last_r, w-last_w, r-last_r, ss);
+            }
+            last_w = w;
+            last_r = r;
+        }
+        for (size_t o = p_index; o>0; --o)
+        {
+            if (o == p_index) continue;
             i = path[o-1];
 
             w = wd[i].index_of_W;
             r = wd[i].index_of_R;
             l = wd[i].len;
+
 
             if (w!=last_w || r!=last_r)
             {
@@ -198,7 +212,17 @@ public:
             ss.append(snum);
             // outt << wd[i].index_of_W << " " << wd[i].index_of_R << " " << wd[i].len << " " << read.substr(wd[i].index_of_R + 1 - PointerListLen, wd[i].len) << " " << dna_f.substr(wd[i].index_of_W + 1 - PointerListLen, wd[i].len)<< endl; 
         }
-
+        if (p_index >= 3)
+        {
+            w = window_down - PointerListLen + 1;
+            r = read.size() - PointerListLen + 1;
+            if (w!=last_w && r!=last_r)
+            {
+                get_alignment(dna_f, last_w - PointerListLen + 1, w-last_w, read, last_r - PointerListLen + 1, r-last_r, 0, 0, 0, 0, ss);
+            }
+            last_w = w;
+            last_r = r;
+        }
         outt << ss << endl;
     }
     void create_matrix()
