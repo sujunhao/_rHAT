@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <stdint.h>
 #include "alignment.h"
+#include "RHT.h"
 #include "ksw.h"
 #define PX(X) std::cout << X << std::endl
 using namespace std;
@@ -31,8 +32,15 @@ const uint8_t seq_nt4_tablet[256] = {
     4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4
 };
 
-int8_t match=1, mism=-1, gape=2, gapo=-1;
-const  char  correspondTable[] = "MIDNSHP=X";
+int8_t  mat[25];
+int8_t match=2, mism=-5, gape=2, gapo=1;
+const char correspondTable[] = "MIDNSHP=X";
+uint32_t *cigar;
+int n_cigar = 0;
+uint8_t  readqry[2048];
+uint8_t  refqry[2048];
+uint8_t *readqry_;
+uint8_t *refqry_;
 
 inline void transIntoDec(uint8_t *transtr,char *str, int length)
 {
@@ -328,6 +336,255 @@ public:
         printf("%lf\n", score);
         return score;
     } 
+    double do_alignment(char* ref, size_t window_up, size_t window_down, char*  read, size_t read_l, string& thecigar, FILE* outt)
+    {
+        
+        int k=0;
+        for (int i=0; i<5; ++i)
+        {
+            for (int j=0; j<5; ++j)
+            {
+                if (i<4 && j<4) mat[k++] = i == j? match : mism;
+                else mat[k++]=0;
+            }
+        }
+
+
+        
+
+
+        int read_len;
+        int ref_len;
+        int w_;
+
+        uint32_t countM = 0;
+        char     trans_cigar[500];
+        int startPosCigar = 0;
+
+        int qlen = 0;
+        int tlen = 0;
+
+
+        double score=0;
+
+        size_t last_w=window_up + PointerListLen - 1, last_r=PointerListLen-1;
+        size_t i, w, r, l;
+
+        if (p_index < 3) return 0;
+        if (p_index >= 3)
+        {
+            i = path[p_index-2];
+            w = wd[i].index_of_W;
+            r = wd[i].index_of_R;
+            l = wd[i].len;
+            ref_len = w-last_w;
+            read_len = r-last_r;
+
+            if (ref_len > PointerListLen / 2)
+            {
+                size_t tmp = ref_len - PointerListLen/2;
+                ref_len = PointerListLen / 2;
+                last_w += tmp;
+            }
+            if (read_len > PointerListLen / 2)
+            {
+                size_t tmp = read_len - PointerListLen/2;
+                read_len = PointerListLen / 2;
+                last_r += tmp;
+            }
+
+            // cout << string(read, last_r - PointerListLen + 1, read_len) << " " << string(ref, last_w - PointerListLen + 1, ref_len) << endl;
+            if (w!=last_w && r!=last_r)
+            {
+                transIntoDec(readqry,read + last_r - PointerListLen + 1,read_len);
+                transIntoDec(refqry,ref + last_w - PointerListLen + 1,ref_len);
+                readqry_ = readqry;
+                refqry_ = refqry;
+                // cout << r << " " << last_r << " " << ref_len << " " << read_len << endl;
+                w_ = max(ref_len, read_len);
+                n_cigar = 0;
+                // score += ksw_global(read_len,readqry_,ref_len,refqry_,5,mat,gapo,gape,w_,&n_cigar,&cigar);
+                score += ksw_extend_core(read_len, readqry_, ref_len, refqry_, 5, mat, gapo, gape, 40, read_len , &qlen, &tlen, &cigar, &n_cigar) - read_len;
+                if (n_cigar) {
+                    for (int z=0;z<n_cigar-1;++z) {
+                        startPosCigar += sprintf(trans_cigar,"%u%c",cigar[z]>>4,correspondTable[cigar[z]&0xf]);
+                        //sams[countSam]._cigar[startPosCigar] = correspondTable[cigar[z]&0xf];
+                        //++startPosCigar;
+                        thecigar.append(trans_cigar);
+                    }
+
+                    if (correspondTable[cigar[n_cigar-1]&0xf] == 'M') {
+                        countM = cigar[n_cigar-1] >> 4;
+                        //startPosCigar += sprintf(trans_cigar,"%u%c",countM,'M');
+                        //sams[countSam].cigar.append(trans_cigar);
+                    } else {
+                        startPosCigar += sprintf(trans_cigar,"%u%c",cigar[n_cigar-1]>>4,correspondTable[cigar[n_cigar-1]&0xf]);
+                        thecigar.append(trans_cigar);
+                    }
+
+                } 
+                free(cigar);
+            }
+            score+=(l)*match;
+            // cout << "---" << countM << endl;
+            countM+=l;
+            // cout << "---" << countM << endl;
+            last_w = w-PointerListLen+l+1;
+            last_r = r-PointerListLen+l+1;
+        }
+
+        for (size_t o = p_index-2; o>0; --o)
+        {
+            if (o == p_index) continue;
+            i = path[o-1];
+
+            w = wd[i].index_of_W;
+            r = wd[i].index_of_R;
+            l = wd[i].len;
+
+            
+
+            ref_len = w-last_w-PointerListLen+1;
+            read_len = r-last_r-PointerListLen+1;
+
+
+            // cout << last_r << " " << r << " " << last_w << " " << w << " " << l << endl;
+            // cout << "----\n" << string(read, last_r, read_len) << " " << string(ref, last_w, ref_len) << endl;
+
+            if (w>last_w+PointerListLen-1|| r>last_r+PointerListLen-1)
+            {
+                if (ref_len > 2048 || read_len > 2048) 
+                {
+                    return -INF;
+                    cout << "hehe\t" << ref_len << " " << read_len << endl;
+                }
+
+                transIntoDec(readqry,read + last_r,read_len);
+                transIntoDec(refqry,ref + last_w, ref_len);
+                readqry_ = readqry;
+                refqry_ = refqry;
+                w_ = max(ref_len, read_len);
+                n_cigar = 0;
+                score += ksw_global(read_len,readqry_,ref_len,refqry_,5,mat,gapo,gape,w_,&n_cigar,&cigar);
+                if (n_cigar - 1) 
+                {
+                    if (correspondTable[cigar[0]&0xf] == 'M') {
+                        countM += (cigar[0] >> 4);
+                        startPosCigar += sprintf(trans_cigar,"%uM",countM);
+                        thecigar.append(trans_cigar);
+                    }
+                    else
+                    {
+                        startPosCigar += sprintf(trans_cigar,"%uM",countM);
+                        thecigar.append(trans_cigar);
+                        startPosCigar += sprintf(trans_cigar,"%u%c",cigar[0]>>4,correspondTable[cigar[0]&0xf]);
+                        //sams[countSam]._cigar[startPosCigar] = correspondTable[cigar[z]&0xf];
+                        //++startPosCigar;
+                        thecigar.append(trans_cigar);
+                    } 
+                    countM = 0;
+                    for (int z=1;z<n_cigar-1;++z) {
+                        startPosCigar += sprintf(trans_cigar,"%u%c",cigar[z]>>4,correspondTable[cigar[z]&0xf]);
+                        //sams[countSam]._cigar[startPosCigar] = correspondTable[cigar[z]&0xf];
+                        //++startPosCigar;
+                        thecigar.append(trans_cigar);
+                    }
+
+                    if (correspondTable[cigar[n_cigar-1]&0xf] == 'M') {
+                        countM = cigar[n_cigar-1] >> 4;
+                        //startPosCigar += sprintf(trans_cigar,"%u%c",countM,'M');
+                        //sams[countSam].cigar.append(trans_cigar);
+                    } else {
+                        startPosCigar += sprintf(trans_cigar,"%u%c",cigar[n_cigar-1]>>4,correspondTable[cigar[n_cigar-1]&0xf]);
+                        thecigar.append(trans_cigar);
+                    }
+
+                } 
+                else if (n_cigar>0)
+                {
+                    if (correspondTable[cigar[0]&0xf] == 'M') 
+                        countM += (cigar[0] >> 4);
+                    else {
+                        startPosCigar += sprintf(trans_cigar,"%uM",countM);
+                        thecigar.append(trans_cigar);
+                        startPosCigar += sprintf(trans_cigar,"%u%c",cigar[0]>>4,correspondTable[cigar[0]&0xf]);
+                        //sams[countSam]._cigar[startPosCigar] = correspondTable[cigar[z]&0xf];
+                        //++startPosCigar;
+                        thecigar.append(trans_cigar);
+                        countM = 0;
+
+                    }
+                }
+                free(cigar);
+            }
+
+            score+=(l)*match;
+            // cout << "---" << countM << endl;
+            countM+=l;
+            // cout << "---" << countM << endl;
+            last_w = w-PointerListLen+l+1;
+            last_r = r-PointerListLen+l+1;
+            // outt << wd[i].index_of_W << " " << wd[i].index_of_R << " " << wd[i].len << " " << read.substr(wd[i].index_of_R + 1 - PointerListLen, wd[i].len) << " " << dna_f.substr(wd[i].index_of_W + 1 - PointerListLen, wd[i].len)<< endl; 
+        }
+
+        // printf("****\n");
+        if (p_index >= 3)
+        {
+            w = window_down;
+            r = read_l;
+
+            ref_len = w-last_w;
+            read_len = r-last_r;
+
+            if (ref_len > PointerListLen/2) ref_len = PointerListLen / 2;
+            if (read_len > PointerListLen/2) read_len = PointerListLen / 2;
+
+            // cout << last_r << " " << r << " " << last_w << " " << w << " " << l << endl;
+            // cout << "----\n" << string(read, last_r, read_len) << " " << string(ref, last_w, ref_len) << endl;
+
+            if (w>last_w && r>last_r)
+            {
+                transIntoDec(readqry,read + last_r,read_len);
+                transIntoDec(refqry,ref + last_w, ref_len);
+                readqry_ = readqry;
+                refqry_ = refqry;
+                w_ = max(ref_len, read_len);
+                n_cigar = 0;
+                qlen = 0;
+                tlen = 0;
+                score += ksw_extend_core(read_len, readqry_, ref_len, refqry_, 5, mat, gapo, gape, 40, read_len , &qlen, &tlen, &cigar, &n_cigar) - read_len;
+                // score += ksw_global(read_len,readqry_,ref_len,refqry_,5,mat,gapo,gape,w_,&n_cigar,&cigar);
+                if (n_cigar) {
+                    if (correspondTable[cigar[0]&0xf] == 'M') {
+                        countM += (cigar[0] >> 4);
+                        startPosCigar += sprintf(trans_cigar,"%uM",countM);
+                        thecigar.append(trans_cigar);
+                    }
+                    else
+                    {
+                        startPosCigar += sprintf(trans_cigar,"%uM",countM);
+                        thecigar.append(trans_cigar);
+                        startPosCigar += sprintf(trans_cigar,"%u%c",cigar[0]>>4,correspondTable[cigar[0]&0xf]);
+                        //sams[countSam]._cigar[startPosCigar] = correspondTable[cigar[z]&0xf];
+                        //++startPosCigar;
+                        thecigar.append(trans_cigar);
+                    } 
+                    countM = 0;
+                    for (int z=1;z<n_cigar;++z) {
+                        startPosCigar += sprintf(trans_cigar,"%u%c",cigar[z]>>4,correspondTable[cigar[z]&0xf]);
+                        //sams[countSam]._cigar[startPosCigar] = correspondTable[cigar[z]&0xf];
+                        //++startPosCigar;
+                        thecigar.append(trans_cigar);
+                    }
+
+                } 
+                free(cigar);
+            }
+        }
+
+        // printf("%lf\n", score);
+        return score;
+    }
 
     
     void create_matrix()

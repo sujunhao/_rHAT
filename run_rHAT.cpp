@@ -7,7 +7,6 @@
 #include <queue>
 #include <unistd.h>
 #include <stdint.h>
-#include "RHT.h"
 #include "DAG.h"
 using namespace std;
 
@@ -108,7 +107,7 @@ int main(int argc, char** argv)
         
         double score = -INF, score_enough=100;
         double score_too_low=-100;
-        size_t windown_hit_too_low=100, hit_too_many=500;
+        size_t windown_hit_too_low=150, hit_too_many=500;
         string thess(read_len+WindowListLen, 0);
         thess.clear();
 
@@ -309,26 +308,27 @@ int main(int argc, char** argv)
 
                 //-----------------------------------use global & semiglobal alignment to struct alignment and get sroce
                 #ifdef PRINTLOG
+                    outt << read_m << endl;
                     dag.print_log(dna_f, read, outt);
                 #endif
 
-                int t;
-                // string ss;
+                double t;
+                string ss;
                 // // dag.do_alignment(dna_f, read, outt);
                 // t = dag.do_alignment(dna_f, window_up, window_down, read, ss, outt);
 
-                strcpy(sss, "");
-                t = dag.do_alignment(const_cast<char*>(c_dna_f), window_up, window_down, const_cast<char*>(c_read), read_len, sss, out);
-                // t = dag.do_alignment(const_cast<char*>(c_dna_f), window_up, window_down, const_cast<char*>(c_read), read_len, ss, out);
+                // strcpy(sss, "");
+                // t = dag.do_alignment(const_cast<char*>(c_dna_f), window_up, window_down, const_cast<char*>(c_read), read_len, sss, out);
+                t = dag.do_alignment(const_cast<char*>(c_dna_f), window_up, window_down, const_cast<char*>(c_read), read_len, ss, out);
 
                 if ((t) > score)
                 {
                     score = t;
 
-                    memset(thesss, 0, sizeof(thesss));
-                    strcpy(thesss, sss);
+                    // memset(thesss, 0, sizeof(thesss));
+                    // strcpy(thesss, sss);
                     
-                    // thess = ss;
+                    thess = ss;
                 }
                 else break;
 
@@ -350,8 +350,8 @@ int main(int argc, char** argv)
         fprintf(out, "%s\n", read_m.c_str());
         fprintf(out, "%d\n", reverse);
         fprintf(out, "%.0lf\n", score);
-        fprintf(out, "%s\n", thesss);
-        // fprintf(out, "%s", thess.c_str());
+        // fprintf(out, "%s\n", thesss);
+        fprintf(out, "%s\n", thess.c_str());
 
 
         // printf("%.0lf\n", score);
