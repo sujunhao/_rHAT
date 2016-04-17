@@ -6,9 +6,12 @@ bio_project/
 out*
 E_coli/
 *.7z
-*.fastq.*
+*`.fastq.*
 *.o
 *.gch
 *.fa
 *.tar
 *.swap
+test*
+
+
