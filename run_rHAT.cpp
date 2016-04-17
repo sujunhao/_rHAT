@@ -8,111 +8,34 @@
 #include <unistd.h>
 #include <stdint.h>
 #include "RHT.h"
-#include "alignment.h"
+#include "DAG.h"
 using namespace std;
 
 // #define PRINTLOG
 
 typedef struct window {
     uint32_t index_of_W;
-    size_t index_of_L;
-    size_t count_L;
+    size_t a, b;
 
     bool operator<(const window& w) const
     {
         return index_of_W >= w.index_of_W;
     }
-
 }WINDOW;
 
 typedef struct window_cnt {
     uint32_t index_of_W;
-    size_t count;
-
+    size_t cnt;
     bool operator<(const window_cnt& w) const
     {
-        return count > w.count;
+        return cnt > w.cnt;
     }
-
 }WINDOW_CNT;
 
 
-typedef struct window_string {
-    uint32_t index_of_W;
-    size_t count;
-    string s;
-    uint64_t index_up;
-    size_t len;
-}WINDOW_STRING;
-
-typedef struct to_sort 
-{ 
-    uint32_t w;
-    size_t index;  
-    bool operator<(const to_sort& b) const
-    {
-        return w < b.w;
-    }
-}TO_SORT;
-
-typedef struct read_hash
-{ 
-    vector<size_t> index;
-}READ_HASH;
-
-
-bool cp_window(WINDOW &a, const window& w) 
-{
-    a.index_of_L = w.index_of_L;
-    a.index_of_W = w.index_of_W;
-    a.count_L = w.count_L;
-}
-
-
-typedef struct match_point
-{
-    size_t len;
-    uint64_t index_of_W;
-    uint32_t index_of_R;
-    vector<size_t> U;
-}MATCH_POINT;
-
-vector<uint32_t> dp;
-vector<bool> vis;
-
-uint32_t find_path_mpv(vector<MATCH_POINT> mpv, size_t v)
-{
-    if (vis[v]) return dp[v];
-    uint32_t value = 0;
-    for (size_t i = 0; i < mpv[v].U.size(); ++i)
-    {
-        if (vis[mpv[v].U[i]]) value = max(value, dp[mpv[v].U[i]] + (uint32_t)mpv[v].len);
-        else
-        {
-            value = max(value, find_path_mpv(mpv, mpv[v].U[i]) + (uint32_t)mpv[v].len);
-        }
-    }
-    vis[v] = true;
-    // std::cout << v << " " << value << endl;
-    return dp[v] = value;
-}
-
-void get_path_mpv(vector<MATCH_POINT> mpv, size_t v, vector<size_t>& out_path)
-{
-    for (size_t i = 0; i < mpv[v].U.size(); ++i)
-    {
-        if (dp[mpv[v].U[i]] + (uint32_t)mpv[v].len == dp[v])
-        {
-            get_path_mpv(mpv, mpv[v].U[i], out_path);
-            out_path.push_back(v);
-            return;
-        }
-    }
-}
-
 int main(int argc, char** argv) 
 { 
-	int c;
+    int c;
     opterr = 0;
     while ((c = getopt (argc, argv, "p:w:")) != -1) 
     {
@@ -130,102 +53,99 @@ int main(int argc, char** argv)
                 abort ();
         }
     }
-    std::cout << PointerListLen << " " << WindowListLen << "\n";
+    std::cout << "PointerListLen: " << PointerListLen << " " 
+              << "| WindowListLen: " << WindowListLen << " "
+              << endl;
 
-    ifstream inf, inRead, inRHT;
-    inRHT.open("out_RHT");
+    ifstream inRef, inRead;
+    ofstream outt;
+    FILE *out;
+    FILE *inRHT;
+    inRef.open("E.coli.fa");
     inRead.open("dna_read");
-    
+    outt.open("outt");
+    out = fopen("out", "wb");
+    inRHT = fopen("out_RHT", "rb");
 
-    ofstream out;
-    out.open("out");
+    //-----------------------------------get dna_ref string
+    string dna_name, dna_s, dna_f;
+    getline(inRef, dna_name);
+    while (inRef >> dna_s) dna_f.append(dna_s);
 
-    dna_bitset db(PointerListLen);
-    db.read_hash_in(inRHT);
+    //-----------------------------------get hash table
+    RHT rht(dna_f.size());
+    rht.read_hash(inRHT);
     cout << "succeed load RHT\n";
-    printf("------------------%.2f\n",  (double)clock() / CLOCKS_PER_SEC);
+    printf("Time used = %.2f\n",  (double)clock() / CLOCKS_PER_SEC);
+    // rht.write_hash_test(outt);
 
+    //-----------------------------------get read
+    string read_m, read, read_x;
+    //init mask
+    MASK = MASK >> (32 - PointerListLen * 2);
+    //the hit window number that will go to alignment of each read
+    const uint32_t full = 3;
+    uint32_t hit_w[full];
+    uint32_t tmp = 0, tar;
 
-    // ofstream outRHT;
-    // outRHT.open("out_R");
-    string mark;
-    string dna_read;
-    while (inRead >> mark)
+    const char *c_dna_f = dna_f.c_str();
+
+    char sss[10000];
+    char thesss[10000];
+
+    while (inRead >> read_m)
     {
-        inRead >> dna_read;
-        if (mark[0]!='@') continue;
-        std::cout << mark  << endl;
+        //-----------------------------------get each read seq, mark, and info
+        inRead >> read;
+        inRead >> read_m;
+        inRead >> read_x;
+        // outt << read << endl;
 
-        string last_score_s;
-        double last_score = -0xffffff;
-        for (int op=0; op<2; ++op)
+        const char *c_read = read.c_str();
+        bool reverse = false;
+        size_t read_len = read.size();
+        
+        
+        double score = -INF, score_enough=100;
+        double score_too_low=-100;
+        size_t windown_hit_too_low=100, hit_too_many=500;
+        string thess(read_len+WindowListLen, 0);
+        thess.clear();
+
+        while (true)
         {
+            //-----------------------------------step 1 find hit windows  (tot 8s)
+            //Hwin is the first heap to set window priority_queue
 
-            if (op==1) 
+            if (reverse)
             {
-                std::reverse(dna_read.begin(),dna_read.end());
-                for (size_t z = 0; z < dna_read.size(); ++z)
+                std::reverse(read.begin(),read.end());
+                for (size_t z = 0; z < read.size(); ++z)
                 {
-                    switch(dna_read[z])
+                    switch(read[z])
                     {
                         case 'A':
-                            dna_read[z] = 'T';
+                            read[z] = 'T';
                             break;
                         case 'T':
-                            dna_read[z] = 'A';
+                            read[z] = 'A';
                             break;
                         case 'G':
-                            dna_read[z] = 'C';
+                            read[z] = 'C';
                             break;
                         case 'C':
-                            dna_read[z] = 'G';
+                            read[z] = 'G';
                             break;    
                     }
                 }
             }
+            #ifdef PRINTLOG
+                outt << read << endl;
+            #endif
 
-
-
-            size_t index_r, num_w;
-            uint32_t L_read[WindowListLen];
-            uint32_t last_W_index;
-
-
-            // db.write_hash_out(outRHT);
-
-            priority_queue<WINDOW> Qwin;
-            priority_queue<WINDOW_CNT> QWin_C;
-            WINDOW w, w1;
-            WINDOW_CNT wc, wc1;
-            num_w = 0;
-
-             // #ifdef PRINTLOG
-            // out << dna_read << endl << endl;
-             // #endif
-            //create_read_hash_table
-            const size_t readListlen = 11;
-            size_t read_hash_len = 1 << (2 * readListlen);
-            vector<READ_HASH> read_h(read_hash_len);
-
-            index_r = 0;
-            while (index_r < dna_read.size())
-            {
-                ++index_r;
-                if (index_r >= readListlen)
-                {
-                    read_h[to_bit(dna_read.substr(index_r - readListlen, readListlen))].index.push_back(index_r - readListlen);
-                    // #ifdef PRINTLOG
-                    // out << dna_read.substr(index_r - readListlen, readListlen) << " " << to_string(to_bit(dna_read.substr(index_r - readListlen, readListlen))) << " " << index_r - readListlen << endl;
-                    // #endif
-                    
-                }
-            }
-            //inside the read_h store vector if some k_mer string appear in read
-
-            //splite the read center sequence
-            uint32_t read_len = dna_read.size();
-            uint32_t len_up_stream = 0, len_down_stream = 0;
-            uint32_t theLen = WindowListLen / 2;
+            size_t len_up_stream = 0, len_down_stream = 0;
+            size_t theLen = WindowListLen / 2;
+            //from len_up_stream to theLen is the center string of read
             if (read_len * 2 > WindowListLen)
             {
                 len_up_stream = read_len / 2 - theLen / 2;
@@ -237,580 +157,223 @@ int main(int argc, char** argv)
                 len_down_stream = 0;
                 theLen = read_len;
             }
+            // outt << read.substr(len_up_stream, theLen) << endl;
 
-            string center_read = dna_read.substr(len_up_stream, theLen);
-
-            // #ifdef PRINTLOG
-            // out << center_read << endl;
-            // #endif
-
-            index_r = 0;
-            while (index_r < center_read.size()) 
+            priority_queue<WINDOW> Hwin;
+            WINDOW w, w_tmp;
+            tmp = 0;
+            for (size_t i=len_up_stream; i < len_up_stream + theLen; ++i)
             {
-                ++index_r;
-                if (index_r >= PointerListLen)
+                tmp = (tmp << 2) | get_c[read[i]];
+                tar = tmp & MASK;
+                if (i - len_up_stream >= PointerListLen - 1)
                 {
-                    L_read[index_r - PointerListLen] = to_bit(center_read.substr(index_r - PointerListLen, index_r));
-                    if (db.get_count(L_read[index_r - PointerListLen]) > 0)
+                    if (rht.P[tar] && rht.P[tar+1] > rht.P[tar])
                     {
-                        w.index_of_L = index_r - PointerListLen;
-                        w.count_L = 1;
-                        w.index_of_W = db.get_window(L_read[w.index_of_L], 1);
-                        num_w += db.get_count(L_read[w.index_of_L]) - 1;
-                        Qwin.push(w);
-                    }
-
-                }
-            }
-
-
-            uint32_t wc_num = 0;
-            const uint32_t wc_full = 2;
-            uint32_t hit_w[wc_full];
-            last_W_index = Qwin.top().index_of_W;
-            wc.index_of_W = Qwin.top().index_of_W;
-            wc.count = 0;
-
-            while (num_w || Qwin.empty())
-            {
-                cp_window(w, Qwin.top());
-                // #ifdef PRINTLOG
-                // out << w.index_of_L << " " << to_string(L_read[w.index_of_L]) << " " << w.count_L << " " << w.index_of_W << endl;
-                // #endif
-
-                if (last_W_index == w.index_of_W)
-                {
-                    ++wc.count;
-                }
-                else
-                {
-                    ++wc_num;
-                    QWin_C.push(wc);
-                    if (wc_num > wc_full)
-                    {
-                        --wc_num;
-                        QWin_C.pop();
-                    }
-                    last_W_index = w.index_of_W;
-                    wc.index_of_W = w.index_of_W;;
-                    wc.count = 1;
-                }
-                Qwin.pop();
-                if (w.count_L < db.get_count(L_read[w.index_of_L]))
-                {
-                    w1.index_of_L = w.index_of_L;
-                    w1.index_of_W = db.get_window(L_read[w.index_of_L], w.count_L + 1);
-                    w1.count_L = w.count_L + 1;
-                    Qwin.push(w1);
-                    --num_w;
-                }
-
-                if (Qwin.empty())
-                {
-                    ++wc_num;
-                    QWin_C.push(wc);
-                    if (wc_num > wc_full)
-                    {
-                        --wc_num;
-                        QWin_C.pop();
-                    }
-                }
-                
-            }
-
-            while (!Qwin.empty())
-            {
-                cp_window(w, Qwin.top());
-                // #ifdef PRINTLOG
-                // out << w.index_of_L << " " << to_string(L_read[w.index_of_L]) << " " << w.count_L << " " << w.index_of_W << endl;
-                // #endif
-
-                if (last_W_index == w.index_of_W)
-                {
-                    ++wc.count;
-                }
-                else
-                {
-                    ++wc_num;
-                    QWin_C.push(wc);
-                    if (wc_num > wc_full)
-                    {
-                        --wc_num;
-                        QWin_C.pop();
-                    }
-                    last_W_index = w.index_of_W;
-                    wc.index_of_W = w.index_of_W;;
-                    wc.count = 1;
-                }
-
-                Qwin.pop();
-                if (Qwin.empty())
-                {
-                    ++wc_num;
-                    QWin_C.push(wc);
-                    if (wc_num > wc_full)
-                    {
-                        --wc_num;
-                        QWin_C.pop();
+                        w.index_of_W = rht.W[rht.P[tar] - 1];
+                        // outt << read_m << " " << w.index_of_W << endl;
+                        w.a = rht.P[tar] + 1;
+                        w.b = rht.P[tar+1];
+                        Hwin.push(w);
                     }
                 }
             }
-
-            //the top 5 hit window index store in hit_w
-            uint32_t wcfull = min(wc_full, wc_num), k=wcfull;
-
-            // cout << wcfull << " " << k << endl;
-            WINDOW_STRING ws[wcfull];
-
-
-            //ws store the most high hit window string, hit time count, etc
-            while (!QWin_C.empty())
+            //Hwin_cnt is the second heap to count window hit number
+            priority_queue<WINDOW_CNT> Hwin_cnt;
+            WINDOW_CNT wc;
+            uint32_t last = w.index_of_W, thecnt = 0;
+            while (!Hwin.empty())
             {
+                w = Hwin.top();
+                //do Hwin pop process
+                Hwin.pop();
+                if (w.b > w.a)
+                {
+                    w_tmp.index_of_W = rht.W[w.a - 1];
+                    w_tmp.a = w.a + 1;
+                    w_tmp.b = w.b;
+                    Hwin.push(w_tmp);
+                }
+
+                //if a new window num appear, push into hwin_cnt
+                if (w.index_of_W != last)
+                {
+                    wc.index_of_W = last;
+                    wc.cnt = thecnt;
+                    last = w.index_of_W;
+                    thecnt = 1;
+
+                    if (wc.cnt < hit_too_many) 
+                    {
+                        Hwin_cnt.push(wc);
+                        if (Hwin_cnt.size() > full) Hwin_cnt.pop();
+                        
+                    }
+                }
+                else 
+                {
+                    ++thecnt;
+                }
+            }
+            uint32_t z = full, mx;
+            while(!Hwin_cnt.empty())
+            {                
                 #ifdef PRINTLOG
-                out << QWin_C.top().count << " " << QWin_C.top().index_of_W << endl;
+                //print the hit window and their hit times
+                    outt << Hwin_cnt.top().cnt << " " << Hwin_cnt.top().index_of_W << endl;
                 #endif
-                // hit_w[--k] = QWin_C.top().index_of_W;
-                ws[--k].count = QWin_C.top().count;
-                ws[k].index_of_W = QWin_C.top().index_of_W;
-                QWin_C.pop();
+                hit_w[--z] = Hwin_cnt.top().index_of_W;
+                if (z==0) 
+                {
+                    mx = Hwin_cnt.top().cnt;
+                }
+                Hwin_cnt.pop();
             }
-
-            if (ws[0].count < 100) continue;
-
-            //ws already have index_w and count info., this function is to find ws array string, index_up and len
-            TO_SORT K[wcfull];
-            for (size_t i=0; i < wcfull; ++i)
-            {
-                    K[i].w = ws[i].index_of_W * (WindowListLen / 2) > len_up_stream ? ws[i].index_of_W * (WindowListLen / 2) - len_up_stream : 0;
-                    K[i].index = i;
-            }
-            sort(K, K+wcfull);
-
-            //  #ifdef PRINTLOG
-            // for (size_t i=0; i < wcfull; ++i)
-            // {
-            //     std::cout << K[i].w << " " << K[i].index << endl;
-            // }
-            // #endif
             
-            string dna_name, dna_s, dna_w;
-
-            uint64_t dna_ref_b = 0;
-            size_t  index_s = 0, ix_window = 0, thegetwindowlen = len_up_stream + WindowListLen + len_down_stream;
-
-            inf.open("E.coli.fa");
-            getline(inf, dna_name);
-            // std::cout << dna_name  << endl;
-
-            // SCANF_WINDOW
-
-            while (inf >> dna_s)
+            if (mx < windown_hit_too_low)
             {
-                index_s = 0;
-                while (index_s < dna_s.size()) 
-                {
-                    ++dna_ref_b;
-                    dna_w.append(dna_s, index_s++, 1);
-                    while (ix_window < wcfull && K[ix_window].w + thegetwindowlen == dna_ref_b)
-                    {
-                        ws[K[ix_window].index].s = dna_w.substr(dna_w.size() - thegetwindowlen, thegetwindowlen);
-                        ws[K[ix_window].index].len = thegetwindowlen;
-                        ws[K[ix_window].index].index_up = K[ix_window].w;
-                        ++ix_window;
-                    }
-                }
-
-                if (ix_window >= wcfull) break;
-                if (dna_w.size() > 2 * thegetwindowlen) dna_w = dna_w.substr(dna_w.size()-thegetwindowlen, thegetwindowlen);
+                if (reverse) break;
+                reverse = true;
+                continue;
             }
-            inf.close();
-
-            // #ifdef PRINTLOG
-            // out << "index_W s count  index_up len\n";
-            // for (uint32_t i=0; i<wcfull; i++)
-            // {
-            //     out << ws[i].index_of_W \
-            //     << " " << ws[i].s.substr(0, 100) \
-            //     << " " << ws[i].count \
-            //     << " " << ws[i].index_up \
-            //     << " " << ws[i].len \
-            //     << endl;
-            // }
-            // #endif
-
-
-            double max_score= -0xffffff, score = 0;
-            string max_score_s, score_s;
-            for (uint32_t o = 0; o < wcfull; ++o)
+            //-----------------------------------step 2 create read hash table
+            RHT rrht(read.size());
+            tmp = 0;
+            rrht.clear();
+            for (size_t i=0; i < read_len; ++i)
             {
-                // if (o>0) break;
-                string ss = ws[o].s;
-                 #ifdef PRINTLOG
-                out << ss.substr(0, 100) << endl;
+                tmp = (tmp << 2) | get_c[read[i]];
+                tar = tmp & MASK;
+                if (i >= PointerListLen - 1)
+                {
+                    rrht.link_string(tar, i);
+                }
+            }
+            rrht.sort_pw();
+
+            //-----------------------------------step 3 for each window hit do alignment
+            uint32_t last_z=hit_w[0]+5;
+            for (size_t z=0; z<full; ++z)
+            {
+                //-----------------------------------struct window and read main body
+                if (abs(last_z-hit_w[z]) <= 1) break;
+                last_z = hit_w[z];
+                size_t window_up, window_down;
+                window_up = ( hit_w[z] * (WindowListLen / 2) >= len_up_stream ) ? ( hit_w[z] * (WindowListLen / 2) - len_up_stream ) : (0);
+                window_down = ( hit_w[z] * (WindowListLen / 2) + WindowListLen + len_down_stream <= dna_f.size() ) ? ( hit_w[z] * (WindowListLen / 2) + WindowListLen + len_down_stream ) : (dna_f.size());
+                #ifdef PRINTLOG
+                outt << "\n" << window_up << endl;
+                outt << dna_f.substr(window_up, window_down - window_up) << endl;
                 #endif
-                size_t count = ws[o].count, window_len = ws[o].len;
-                uint64_t index_up = ws[o].index_up;
-                uint32_t index_w = ws[o].index_of_W;
-                vector<MATCH_POINT> mpv;
-                MATCH_POINT mp_tmp;
-
-                for (size_t i = 0; i < ss.size(); ++i)
+                // struct graph node include the first and last node
+                DAG dag(window_down - window_up + 3);
+                //the first node
+                dag.add_node(window_up + PointerListLen - 1, PointerListLen - 1, 0);
+                tmp = 0;
+                for (size_t i=window_up; i < window_down; ++i)
                 {
-                    if (i >= readListlen)
+                    tmp = (tmp << 2) | get_c[dna_f[i]];
+                    tar = tmp & MASK;
+                    if (i - window_up >= PointerListLen - 1)
                     {
-                        if (read_h[to_bit(ss.substr(i - readListlen, readListlen))].index.size() > 0)
+                        //if find window & read match l-mer
+                        uint32_t d;
+                        d = rrht.search(tar);
+                        if (d)
                         {
-                            size_t k = 0;
-                            vector<size_t> vv;
-                            vv = read_h[to_bit(ss.substr(i - readListlen, readListlen))].index;
-                            while (k < vv.size())
+                            // outt << to_string(tar) << " " << d << endl;
+                            while ((rrht.PW[d-1] >> 32) == tar)
                             {
-                                size_t match_len = readListlen;
-                                for (size_t j = 0; i + j < ss.size(); ++j)
+                                //if overlap
+                                if (dag.check_node(i))
                                 {
-                                    if (dna_read[vv[k] + readListlen + j] == ss[i + j])
-                                        ++match_len;
-                                    else 
-                                        break;
+                                    ++d;
+                                    continue;
                                 }
-                                mp_tmp.len = match_len;
-                                mp_tmp.index_of_W = i - readListlen;
-                                mp_tmp.index_of_R = vv[k];
-                                // out << mp_tmp.len \
-                                // << " " << mp_tmp.index_of_W \
-                                // << " " <<  ss.substr(i - readListlen, mp_tmp.len)\
-                                // << " " << mp_tmp.index_of_R \
-                                // << " " << dna_read.substr(mp_tmp.index_of_R, mp_tmp.len) \
-                                // << endl;
-                                mpv.push_back(mp_tmp);
-                                ++k;
+                                dag.add_node(i, rrht.PW[d-1], PointerListLen);
+                                ++d;
+                                // outt << wd[node_i].index_of_W << " " << wd[node_i].index_of_R << " " << wd[node_i].len << " " << read.substr(wd[node_i].index_of_R, wd[node_i].len) << endl; 
                             }
                         }
                     }
                 }
+                dag.add_node(window_down, read_len, 0);
 
-                size_t *del;
-                del = new size_t[mpv.size()];
-                for (size_t i=0; i<mpv.size(); ++i)
+                //dag.print_log(outt);
+
+                //linking nodes edge
+                //node matrix 
+                dag.create_matrix();
+                //do use node matrix to run dp
+                dag.find_path();
+
+                //-----------------------------------use global & semiglobal alignment to struct alignment and get sroce
+                #ifdef PRINTLOG
+                    dag.print_log(dna_f, read, outt);
+                #endif
+
+                double t;
+                // string ss(read_len+100, 0);
+                // ss.clear();
+                // // dag.do_alignment(dna_f, read, outt);
+                // t = dag.do_alignment(dna_f, window_up, window_down, read, ss, outt);
+
+                strcpy(sss, "");
+                t = dag.do_alignment(const_cast<char*>(c_dna_f), window_up, window_down, const_cast<char*>(c_read), read_len, sss, out);
+
+                if ((t) > score)
                 {
-                    del[i] = 0;
-                    for (size_t j=0; j<mpv.size(); ++j)
-                    {
-                        if (i==j) continue;
-                        else 
-                        {
-                            if (mpv[i].index_of_R > mpv[j].index_of_R && 
-                                mpv[i].index_of_R + mpv[i].len <= mpv[j].index_of_R + mpv[j].len &&
-                                mpv[i].index_of_W > mpv[j].index_of_W && 
-                                mpv[i].index_of_W + mpv[i].len <= mpv[j].index_of_W + mpv[j].len)
-                            {
-                                // out<< i \
-                                // << " " << mpv[i].index_of_R \
-                                // << " " << mpv[i].len \
-                                // << " " << j \
-                                // << " " <<  mpv[j].index_of_R\
-                                // << " " << mpv[j].len \
-                                // << endl;
-                                del[i] = j+1;
-                            }
-                        }
-                    }
+                    score = t;
+
+                    memset(thesss, 0, sizeof(thesss));
+                    strcpy(thesss, sss);
+                    
+                    // thess = ss;
                 }
-                
+                else break;
 
-                size_t j = mpv.size() - 1;
-                for (vector<MATCH_POINT>::iterator i = mpv.end() - 1; i >= mpv.begin(); --i)
-                {
-                    if (del[j]>0) 
-                    {
-                        mpv.erase(i);
-                    }
-                    --j;
-                }
-                delete [] del;
-                
+                if (score < score_too_low) break;
+                // dag.do_alignment(c_dna_f, window_up, window_down - PointerListLen + 1, c_read, out);
 
-                //init V_start, V_end
-                MATCH_POINT Vs, Ve;
-                Vs.len = Ve.len = 0;
-                Vs.index_of_R = Vs.index_of_W = 0;
-                Ve.index_of_W = window_len;
-                Ve.index_of_R = dna_read.size();
-                mpv.push_back(Vs);
-                mpv.push_back(Ve);
-
-                // out << mpv.size() << " " << Ve.index_of_W << " " << Ve.index_of_R << endl << endl;
-                const uint32_t t_wait = 1024;
-                for (size_t i = 0; i < mpv.size(); ++i)
-                {
-                    for (size_t j = 0; j < mpv.size(); ++j)
-                    {
-                        if (i != j)
-                        if(mpv[i].index_of_R + mpv[i].len <= mpv[j].index_of_R && mpv[i].index_of_R + mpv[i].len + t_wait>= mpv[j].index_of_R  && mpv[i].index_of_W + mpv[i].len <= mpv[j].index_of_W)
-                        {
-                            mpv[j].U.push_back(i);
-                            // out << " i i_r i_w" << " " << i \
-                            // << " | " << mpv[i].index_of_R  \
-                            // << " | " << mpv[i].index_of_W  \
-                            // << " | " << j \
-                            // << " | " << mpv[j].index_of_R  \
-                            // << " | " << mpv[j].index_of_W  \
-                            // << " | " << mpv[i].len  \
-                            << endl;
-                        }
-                    }
-                }
-
-                dp.clear();
-                vis.clear();
-                for (size_t i = 0; i < mpv.size(); ++i) 
-                {
-                    dp.push_back(0);
-                    vis.push_back(false);
-                }
-                find_path_mpv(mpv, mpv.size() - 1);
-                // for (size_t i = 0; i < mpv.size(); ++i) 
-                // {
-                //     out << i << " " << dp[i] << endl;
-                // }
-
-                vector<size_t> out_path;
-                get_path_mpv(mpv, mpv.size() - 1, out_path);
-
-                //S store the output alignment
-                ALIGNMENT A;
-                string S1, S2, s1, s2, s3, s4;
-                size_t last_r = 0, last_w = 0;
-                for (size_t i = 0; i < out_path.size(); ++i)
-                {
-                    size_t z = out_path[i];
-                    s1.clear();
-                    s2.clear();
-                    if (mpv[z].index_of_R > last_r) s1 = dna_read.substr(last_r, mpv[z].index_of_R - last_r);
-                    if (mpv[z].index_of_W > last_w) s2 = ss.substr(last_w, mpv[z].index_of_W - last_w);
-                    if (s1.size() || s2.size())
-                    {
-                        if (last_r == 0 || last_w == 0 || mpv[z].index_of_R + mpv[z].len == dna_read.size() || mpv[z].index_of_W + mpv[z].len == ss.size())
-                        {
-                            A.get_semi(s1, s2, s3, s4);
-                            S1.append(s3);
-                            S2.append(s4);
-                        }
-                        else 
-                        {
-                            A.get_global(s1, s2, s3, s4);
-                            S1.append(s3);
-                            S2.append(s4);
-                        }
-                    }
-                    S1.append(dna_read.substr(mpv[z].index_of_R, mpv[z].len));
-                    S2.append(ss.substr(mpv[z].index_of_W, mpv[z].len));
-                    last_r = mpv[z].index_of_R + mpv[z].len;
-                    last_w = mpv[z].index_of_W + mpv[z].len;
-                    //  #ifdef PRINTLOG
-                    // // out << "s1----------\n" << s1 << "\ns2---------\n" << s2 << "\ns3--------\n" << s3 << "\ns4--------\n" << s4 << "\nr----------\n" << dna_read.substr(mpv[z].index_of_R, mpv[z].len) << "\nw---------\n" << ss.substr(mpv[z].index_of_W, mpv[z].len) << "\nS1---------\n" << S1 << "\nS2--------\n" << S2 << "\n---------------\n";
-                    // out << z
-                    // << mpv[z].len \
-                    // << endl \
-                    // << mpv[z].index_of_R \
-                    // << " " << dna_read.substr(mpv[z].index_of_R, mpv[z].len) \
-                    // << endl \
-                    // << mpv[z].index_of_W \
-                    // << " " << ss.substr(mpv[z].index_of_W, mpv[z].len) << endl;
-                    // #endif
-                    // << endl << S1 << endl << S2 << endl;
-                }
-                s1.clear();
-                s2.clear();
-                if (last_r < dna_read.size()) s1 = dna_read.substr(last_r, dna_read.size() - last_r);
-                if (last_w < ss.size()) s2 = ss.substr(last_w, ss.size() - last_w);
-                if (s1.size() !=  0 || s2.size() != 0)
-                {
-                    A.get_semi(s1, s2, s3, s4);
-                    S1.append(s3);
-                    S2.append(s4);
-                }
-
-                for (size_t i = 0; i < S1.size(); ++i)
-                {
-                    if (S1[i] != '_')
-                    {
-                        S1 = S1.substr(i, S1.size() - i);
-                        S2 = S2.substr(i, S2.size() - i);
-                        break;
-                    }
-                }
-
-                for (size_t i = S1.size() - 1; i >= 0; --i)
-                {
-                    if (S1[i] != '_')
-                    {
-                        S1 = S1.substr(0, i+1);
-                        S2 = S2.substr(0, i+1);
-                        break;
-                    }
-                }
-
-                //  #ifdef PRINTLOG
-                // out << endl << S1 << endl;
-                // out << endl << S2 << endl;
-                //  #endif
-
-                
-
-                score = 0;
-                int state = -1;
-                std::ostringstream scoress;
-                long long cnt = 0;
-                for (size_t i = 0; i<S1.size(); ++i)
-                {
-                    if (S1[i]==S2[i])
-                    {
-                        score+=scy;
-                        if (state==0) cnt++;
-                        else
-                        {
-                            if (state >=0) scoress << cnt;
-                            cnt = 1;
-                            switch(state)
-                            {
-                                case 0:
-                                case 3:
-                                    scoress << 'M';
-                                    break;
-                                case 1:
-                                    scoress << 'D';
-                                    break;
-                                case 2:
-                                    scoress << 'I';
-                                    break;
-                                default:;
-                            }
-                        }
-                        state = 0;
-                    }
-                    else if (S1[i]=='_')
-                    {
-                        score+=scg;
-                        if (state==1) cnt++;
-                        else
-                        {
-                            if (state >=0) scoress << cnt;
-                            switch(state)
-                            {
-                                case 0:
-                                case 3:
-                                    scoress << 'M';
-                                    break;
-                                case 1:
-                                    scoress << 'D';
-                                    break;
-                                case 2:
-                                    scoress << 'I';
-                                    break;
-                                default:;
-                            }
-                            cnt = 1;
-                        }
-                        state = 1;
-                    }
-                    else if (S2[i]=='_')
-                    {
-                        score+=scg;
-                        if (state==2) cnt++;
-                        else
-                        {
-                            if (state >=0) scoress << cnt;
-                            switch(state)
-                            {
-                                case 0:
-                                case 3:
-                                    scoress << 'M';
-                                    break;
-                                case 1:
-                                    scoress << 'D';
-                                    break;
-                                case 2:
-                                    scoress << 'I';
-                                    break;
-                                default:;
-                            }
-                            cnt = 1;
-                        }
-                        state = 2;
-                    }
-                    else 
-                    {
-                        score+=scn;
-                        if (state==3) cnt++;
-                        else
-                        {
-                            if (state >=0) scoress << cnt;
-                            switch(state)
-                            {
-                                case 0:
-                                case 3:
-                                    scoress << 'M';
-                                    break;
-                                case 1:
-                                    scoress << 'D';
-                                case 2:
-                                    scoress << 'I';
-                                    break;
-                                default:;
-                            }
-                            cnt = 1;
-                        }
-                        state = 3;
-                    }
-                }
-
-
-                if (score > max_score)
-                {
-                    max_score = score;
-                    max_score_s = scoress.str();
-
-                }
-
-                // out << scoress.str() << endl;
-
-                // out << dna_read << endl;
-                // out << score << endl;
-
-
+                if (t <= score_too_low) break;
+                if (score >= score_enough) break;   
             }
-            std::cout << "score: " << max_score << endl;
-            if (max_score > last_score)
-            {
-                last_score = max_score;
-                last_score_s = max_score_s;
-            }
-            if (last_score > 1000) break;
-           
-        }   
-        
 
-        printf("------------------%.2f\n",  (double)clock() / CLOCKS_PER_SEC);
-        
-        out << last_score_s << endl;
-        out << last_score << endl;
+            if (score >= score_enough) break;
+            if (reverse) break;
+            reverse = true;
+        }
 
+
+
+        //-----------------------------------out put the read best alignment
+        fprintf(out, "%s\n", read_m.c_str());
+        fprintf(out, "%d\n", reverse);
+        fprintf(out, "%.0lf\n", score);
+        fprintf(out, "%s\n", thesss);
+        // fprintf(out, "%s", thess.c_str());
+
+
+        // printf("%.0lf\n", score);
+        // printf("Time used = %.2f\n",  (double)clock() / CLOCKS_PER_SEC);
 
     }
+
+    
+    
+
+    
+
+    inRef.close();
+    inRead.close();
+    outt.close();
+    fclose(out);
+    fclose(inRHT);
+
+
         
-
-
-
-
-    /*for (size_t i=0; i <= index_r - PointerListLen; ++i)
-    {
-       out << L_read[i] << " " << to_string(L_read[i]) << "\n";
-    }*/
-
-
 
 
     printf("Time used = %.2f\n",  (double)clock() / CLOCKS_PER_SEC);
-	return 0;
+    return 0;
 }

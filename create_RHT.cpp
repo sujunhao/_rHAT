@@ -15,7 +15,9 @@ int main(int argc, char** argv)
 
     int c;
     opterr = 0;
-    while ((c = getopt (argc, argv, "p:w:")) != -1) 
+    char d_n[100]="E.coli.fa";
+    //set argument,p for PointerListLen,w for WindowListLen,f for dna_read file(if the -pwf is provided, argument is required)
+    while ((c = getopt (argc, argv, "p:w:f:")) != -1) 
     {
         switch (c)
         {
@@ -27,15 +29,31 @@ int main(int argc, char** argv)
                 if (optarg)
                     WindowListLen = atol(optarg);
                 break;
+            case 'f':
+                if (optarg)
+                    strcpy(d_n, optarg);
+                break;
+            case 'h':
+                printf("\tuse dna file to create a RHT table to file out_RHT\n");
+                printf("\tcreate_RHT [option]\n");
+                printf("\t-f \tdna file           [%s]\n", d_n);
+                printf("\t-w \tset WindowListLen  [%lu]\n", (unsigned long)WindowListLen);
+                printf("\t-p \tset PointerListLen [%lu]\n", (unsigned long)PointerListLen);
+                printf("\t-h \thelp\n");
+                return 0;
+                break;
             default:
                 abort ();
         }
     }
-    std::cout << PointerListLen << " " << WindowListLen << "\n";
+
+    std::cout << "PointerListLen: " << PointerListLen << " " 
+              << "| WindowListLen: " << WindowListLen << " "
+              << "| dna file: " << string(d_n) << endl;
 
 
     ifstream inf;
-    inf.open("E.coli.fa");
+    inf.open(d_n);
 
     FILE *pout;
     pout = fopen("out_RHT", "wb");

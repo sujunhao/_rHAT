@@ -209,95 +209,95 @@ public:
     }
 
     double do_alignment(char* dna_f, size_t window_up, size_t window_down, char*  read, size_t read_len, char* ss, FILE* outt)
-{
-    // for (size_t o = p_index, i; o>0; --o)
-    // {
-    //     if (o==p_index) continue;
-    //     i = path[o-1];
-    //     outt << wd[i].index_of_W << " " << wd[i].index_of_R << " " << wd[i].len << " " << read.substr(wd[i].index_of_R + 1 - PointerListLen, wd[i].len) << " " << dna_f.substr(wd[i].index_of_W + 1 - PointerListLen, wd[i].len)<< endl; 
-    // }
-    // outt<< "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n";
-
-    size_t last_w=window_up + PointerListLen - 1, last_r=PointerListLen-1;
-    double score=0;
-    size_t index_ss=0;
-    char snum[100];
-    memset(snum, 0, sizeof(snum));
-    size_t i, w, r, l;
-    // printf("%lu %lu\n", (unsigned long)(p_index), (unsigned long)(window_down));
-    if (p_index >= 3)
     {
-        i = path[p_index-2];
-        w = wd[i].index_of_W;
-        r = wd[i].index_of_R;
-        if (w!=last_w && r!=last_r)
+        // for (size_t o = p_index, i; o>0; --o)
+        // {
+        //     if (o==p_index) continue;
+        //     i = path[o-1];
+        //     outt << wd[i].index_of_W << " " << wd[i].index_of_R << " " << wd[i].len << " " << read.substr(wd[i].index_of_R + 1 - PointerListLen, wd[i].len) << " " << dna_f.substr(wd[i].index_of_W + 1 - PointerListLen, wd[i].len)<< endl; 
+        // }
+        // outt<< "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n";
+
+        size_t last_w=window_up + PointerListLen - 1, last_r=PointerListLen-1;
+        double score=0;
+        size_t index_ss=0;
+        char snum[100];
+        memset(snum, 0, sizeof(snum));
+        size_t i, w, r, l;
+        // printf("%lu %lu\n", (unsigned long)(p_index), (unsigned long)(window_down));
+        if (p_index >= 3)
         {
-            // printf("%lu %lu %lu %lu\n", (unsigned long)(last_w - PointerListLen + 1), (unsigned long)(w-last_w), (unsigned long)(last_r - PointerListLen + 1), (unsigned long)(r-last_r));
-            score+=get_alignment(dna_f, last_w - PointerListLen + 1, w-last_w, read, last_r - PointerListLen + 1, r-last_r, w-last_w, r-last_r, w-last_w, r-last_r, ss);
-        }
-        last_w = w;
-        last_r = r;
-    }
-    // printf("2333\n");
-
-    for (size_t o = p_index; o>0; --o)
-    {
-        if (o == p_index) continue;
-        i = path[o-1];
-
-        w = wd[i].index_of_W;
-        r = wd[i].index_of_R;
-        l = wd[i].len;
-
-
-        if (w!=last_w || r!=last_r)
-        {
+            i = path[p_index-2];
+            w = wd[i].index_of_W;
+            r = wd[i].index_of_R;
             if (w!=last_w && r!=last_r)
             {
-                // printf("%lu %lu %lu %lu\n", (unsigned long)(last_w), (unsigned long)(w), (unsigned long)(last_r), (unsigned long)(r));
                 // printf("%lu %lu %lu %lu\n", (unsigned long)(last_w - PointerListLen + 1), (unsigned long)(w-last_w), (unsigned long)(last_r - PointerListLen + 1), (unsigned long)(r-last_r));
-                score+=get_alignment(dna_f, last_w - PointerListLen + 1, w-last_w, read, last_r - PointerListLen + 1, r-last_r, 0, 0, w-last_w, r-last_r, ss);
+                score+=get_alignment(dna_f, last_w - PointerListLen + 1, w-last_w, read, last_r - PointerListLen + 1, r-last_r, w-last_w, r-last_r, w-last_w, r-last_r, ss);
             }
-            else if(w==last_w)
-            {
-                score+=(r-last_r)*scg;
-                sprintf(snum, "%lu", (unsigned long)(r-last_r));
-                strcat(ss, snum);
-                strcat(ss, "I");
-            }
-            else if(r==last_r)
-            {
-                score+=(w-last_w)*scg;
-                sprintf(snum, "%lu", (unsigned long)(w-last_w));
-                strcat(ss, snum);
-                strcat(ss, "D");
-            }
+            last_w = w;
+            last_r = r;
         }
-        last_w = w+l;
-        last_r = r+l;
-        score+=(l)*scy;
-        sprintf(snum, "%lu", (unsigned long)l);
-        strcat(ss, snum);
-        strcat(ss, "M");
-        // outt << wd[i].index_of_W << " " << wd[i].index_of_R << " " << wd[i].len << " " << read.substr(wd[i].index_of_R + 1 - PointerListLen, wd[i].len) << " " << dna_f.substr(wd[i].index_of_W + 1 - PointerListLen, wd[i].len)<< endl; 
-    }
+        // printf("2333\n");
 
-    // printf("2333\n");
-    if (p_index >= 3)
-    {
-        w = window_down;
-        r = read_len;
-        if (w!=last_w && r!=last_r)
+        for (size_t o = p_index; o>0; --o)
         {
-            score += get_alignment(dna_f, last_w - PointerListLen + 1, w-last_w, read, last_r - PointerListLen + 1, r-last_r, 0, 0, 0, 0, ss);
+            if (o == p_index) continue;
+            i = path[o-1];
+
+            w = wd[i].index_of_W;
+            r = wd[i].index_of_R;
+            l = wd[i].len;
+
+
+            if (w!=last_w || r!=last_r)
+            {
+                if (w!=last_w && r!=last_r)
+                {
+                    // printf("%lu %lu %lu %lu\n", (unsigned long)(last_w), (unsigned long)(w), (unsigned long)(last_r), (unsigned long)(r));
+                    // printf("%lu %lu %lu %lu\n", (unsigned long)(last_w - PointerListLen + 1), (unsigned long)(w-last_w), (unsigned long)(last_r - PointerListLen + 1), (unsigned long)(r-last_r));
+                    score+=get_alignment(dna_f, last_w - PointerListLen + 1, w-last_w, read, last_r - PointerListLen + 1, r-last_r, 0, 0, w-last_w, r-last_r, ss);
+                }
+                else if(w==last_w)
+                {
+                    score+=(r-last_r)*scg;
+                    sprintf(snum, "%lu", (unsigned long)(r-last_r));
+                    strcat(ss, snum);
+                    strcat(ss, "I");
+                }
+                else if(r==last_r)
+                {
+                    score+=(w-last_w)*scg;
+                    sprintf(snum, "%lu", (unsigned long)(w-last_w));
+                    strcat(ss, snum);
+                    strcat(ss, "D");
+                }
+            }
+            last_w = w+l;
+            last_r = r+l;
+            score+=(l)*scy;
+            sprintf(snum, "%lu", (unsigned long)l);
+            strcat(ss, snum);
+            strcat(ss, "M");
+            // outt << wd[i].index_of_W << " " << wd[i].index_of_R << " " << wd[i].len << " " << read.substr(wd[i].index_of_R + 1 - PointerListLen, wd[i].len) << " " << dna_f.substr(wd[i].index_of_W + 1 - PointerListLen, wd[i].len)<< endl; 
         }
-        last_w = w;
-        last_r = r;
-    }
-    // outt << ss << endl;
-    printf("%lf\n", score);
-    return score;
-} 
+
+        // printf("2333\n");
+        if (p_index >= 3)
+        {
+            w = window_down;
+            r = read_len;
+            if (w!=last_w && r!=last_r)
+            {
+                score += get_alignment(dna_f, last_w - PointerListLen + 1, w-last_w, read, last_r - PointerListLen + 1, r-last_r, 0, 0, 0, 0, ss);
+            }
+            last_w = w;
+            last_r = r;
+        }
+        // outt << ss << endl;
+        printf("%lf\n", score);
+        return score;
+    } 
 
     void create_matrix()
     {
