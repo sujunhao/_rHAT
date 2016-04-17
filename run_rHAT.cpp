@@ -312,14 +312,14 @@ int main(int argc, char** argv)
                     dag.print_log(dna_f, read, outt);
                 #endif
 
-                double t;
-                // string ss(read_len+100, 0);
-                // ss.clear();
+                int t;
+                // string ss;
                 // // dag.do_alignment(dna_f, read, outt);
                 // t = dag.do_alignment(dna_f, window_up, window_down, read, ss, outt);
 
                 strcpy(sss, "");
                 t = dag.do_alignment(const_cast<char*>(c_dna_f), window_up, window_down, const_cast<char*>(c_read), read_len, sss, out);
+                // t = dag.do_alignment(const_cast<char*>(c_dna_f), window_up, window_down, const_cast<char*>(c_read), read_len, ss, out);
 
                 if ((t) > score)
                 {

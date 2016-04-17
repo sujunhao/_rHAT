@@ -7,10 +7,39 @@
 #include <unistd.h>
 #include <stdint.h>
 #include "alignment.h"
+#include "ksw.h"
 #define PX(X) std::cout << X << std::endl
 using namespace std;
 
 uint32_t t_wait = 1024;
+const uint8_t seq_nt4_tablet[256] = {
+    4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,
+    4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,
+    4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,
+    4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,
+    4, 0, 4, 1,  4, 4, 4, 2,  4, 4, 4, 4,  4, 4, 2, 4,
+    4, 4, 4, 4,  3, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,
+    4, 0, 4, 1,  4, 4, 4, 2,  4, 4, 4, 4,  4, 4, 2, 4,
+    4, 4, 4, 4,  3, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,
+    4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,
+    4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,
+    4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,
+    4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,
+    4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,
+    4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,
+    4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,
+    4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4
+};
+
+int8_t match=1, mism=-1, gape=2, gapo=-1;
+const  char  correspondTable[] = "MIDNSHP=X";
+
+inline void transIntoDec(uint8_t *transtr,char *str, int length)
+{
+    for (int i=0;i<length;++i) {
+        transtr[i] = seq_nt4_tablet[str[i]];
+    }
+}
 
 
 typedef struct window_node {
@@ -27,6 +56,7 @@ private:
 	size_t node_i;
 	size_t *path;
 	size_t p_index;
+
 public:
 	DAG(size_t max_num)
 	{
@@ -299,6 +329,7 @@ public:
         return score;
     } 
 
+    
     void create_matrix()
     {
         V = new size_t*[node_i];

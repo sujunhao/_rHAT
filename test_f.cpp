@@ -74,7 +74,7 @@ int main()
     uint8_t *readqry_;
     uint8_t *refqry_;
 
-    char read[]="ATTGC";
+    char read[]="";
     char ref[]="ACTTGAC";
 
     int read_len = strlen(read);
