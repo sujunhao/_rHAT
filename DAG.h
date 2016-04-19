@@ -83,6 +83,10 @@ public:
         delete [] wd;
 	}
 
+    void clear()
+    {
+        node_i = 0;
+    }
 	void add_node(uint32_t w, uint32_t r, size_t l)
 	{
 		wd[node_i].index_of_W = w;

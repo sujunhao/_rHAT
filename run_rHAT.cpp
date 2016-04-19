@@ -12,16 +12,6 @@ using namespace std;
 
 // #define PRINTLOG
 
-typedef struct window {
-    uint32_t index_of_W;
-    size_t a, b;
-
-    bool operator<(const window& w) const
-    {
-        return index_of_W >= w.index_of_W;
-    }
-}WINDOW;
-
 typedef struct window_cnt {
     uint32_t index_of_W;
     size_t cnt;
@@ -98,6 +88,8 @@ int main(int argc, char** argv)
     memset(WC, 0, sizeof(WC));
     size_t tmp_wc, max_wc=0;
     //#
+    RHT rrht(30000);
+
 
     while (inRead >> read_m)
     {
@@ -105,6 +97,8 @@ int main(int argc, char** argv)
         inRead >> read;
         inRead >> read_m;
         inRead >> read_x;
+        // if (read.size() > 10000)
+        // cout << read.size() << endl;
         // outt << read << endl;
 
         const char *c_read = read.c_str();
@@ -234,7 +228,6 @@ int main(int argc, char** argv)
 
 
             //-----------------------------------step 2 create read hash table
-            RHT rrht(read.size());
             tmp = 0;
             rrht.clear();
             for (size_t i=0; i < read_len; ++i)
@@ -263,7 +256,9 @@ int main(int argc, char** argv)
                 outt << dna_f.substr(window_up, window_down - window_up) << endl;
                 #endif
                 // struct graph node include the first and last node
+                // dag.clear();
                 DAG dag(window_down - window_up + 3);
+                dag.clear();
                 //the first node
                 dag.add_node(window_up + PointerListLen - 1, PointerListLen - 1, 0);
                 tmp = 0;
