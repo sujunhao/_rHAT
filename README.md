@@ -5,7 +5,20 @@
 
 ## usage:
 ```
-./create_RHT
-./run_rHAT
+make
+
+//help
+./create_RHT -h
+./run_rHAT -h
+
+
+//use E.coli.fa file to create RHT
+./create_RHT -d E.coli.fa
+
+
+//-d for dna file, -r for read file, -o for ouput file
+./run_rHAT -d E.coli.fa -r dna_read -o out
+
 ```
+
 

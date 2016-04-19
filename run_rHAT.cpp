@@ -31,7 +31,10 @@ int main(int argc, char** argv)
 { 
     int c;
     opterr = 0;
-    while ((c = getopt (argc, argv, "p:w:")) != -1) 
+    char d_n[100]="E.coli.fa";
+    char r_n[100]="dna_read";
+    char o_n[100]="out";
+    while ((c = getopt (argc, argv, "p:w:d:r:o:h")) != -1) 
     {
         switch (c)
         {
@@ -43,22 +46,44 @@ int main(int argc, char** argv)
                 if (optarg)
                     WindowListLen = atol(optarg);
                 break;
+            case 'd':
+                if (optarg)
+                    strcpy(d_n, optarg);
+                break;
+            case 'r':
+                if (optarg)
+                    strcpy(r_n, optarg);
+            case 'o':
+                if (optarg)
+                    strcpy(o_n, optarg);   
+            case 'h':
+                printf("\tuse out_RHT to run rHAT\n");
+                printf("\trun_rHAT [option]\n");
+                printf("\t-d \tdna file           [%s]\n", d_n);
+                printf("\t-r \tread file          [%s]\n", r_n);
+                printf("\t-o \toutput file        [%s]\n", o_n);
+                printf("\t-w \tset WindowListLen  [%lu]\n", (unsigned long)WindowListLen);
+                printf("\t-p \tset PointerListLen [%lu]\n", (unsigned long)PointerListLen);
+                printf("\t-h \thelp\n");
+                return 0;
+                break;
             default:
                 abort ();
         }
     }
     std::cout << "PointerListLen: " << PointerListLen << " " 
               << "| WindowListLen: " << WindowListLen << " "
-              << endl;
+              << "| dna file: " << string(d_n) << " " 
+              << "| read file: " << string(r_n) << endl;
 
     ifstream inRef, inRead;
     ofstream outt;
     FILE *out;
     FILE *inRHT;
-    inRef.open("E.coli.fa");
-    inRead.open("dna_read");
+    inRef.open(d_n);
+    inRead.open(r_n);
     outt.open("outt");
-    out = fopen("out", "wb");
+    out = fopen(o_n, "wb");
     inRHT = fopen("out_RHT", "rb");
 
     //-----------------------------------get dna_ref string
