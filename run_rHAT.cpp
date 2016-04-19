@@ -21,6 +21,11 @@ typedef struct window_cnt {
     }
 }WINDOW_CNT;
 
+typedef struct wq{
+    size_t _i, i, n;
+    uint32_t d, tar;
+}WQ;
+
 
 int main(int argc, char** argv) 
 { 
@@ -89,6 +94,7 @@ int main(int argc, char** argv)
     size_t tmp_wc, max_wc=0;
     //#
     RHT rrht(30000);
+    bool vis[30000];
 
 
     while (inRead >> read_m)
@@ -261,7 +267,11 @@ int main(int argc, char** argv)
                 dag.clear();
                 //the first node
                 dag.add_node(window_up + PointerListLen - 1, PointerListLen - 1, 0);
+
                 tmp = 0;
+                memset(vis, 0, sizeof(vis));
+                queue<WQ> Q;
+                WQ qt;
                 for (size_t i=window_up; i < window_down; ++i)
                 {
                     tmp = (tmp << 2) | get_c[dna_f[i]];
@@ -271,21 +281,67 @@ int main(int argc, char** argv)
                         //if find window & read match l-mer
                         uint32_t d;
                         d = rrht.search(tar);
+                        size_t pw, n;
+                        uint32_t pr;
                         if (d)
                         {
                             // outt << to_string(tar) << " " << d << endl;
-                            while ((rrht.PW[d-1] >> 32) == tar)
+                            while ((rrht.PW[d-1] >> 32) == tar && !vis[(uint32_t)rrht.PW[d-1]])
                             {
+                                pw = i;
+                                pr = rrht.PW[d-1];
+                                n = dag.add_node(pw, pr, PointerListLen);
+
+                                qt.i = i;
+                                qt.d = d;
+                                qt.tar = tar;
+                                qt.n = n;
+
                                 //if overlap
-                                if (dag.check_node(i))
+                                vis[pr]=true;
+                                ++pw;
+                                ++pr;
+                                while(!vis[pr] && dna_f[pw]==read[pr] && dag.check_node(pw, pr, n))
                                 {
-                                    ++d;
-                                    continue;
+                                    vis[pr]=true;
+                                    ++pw;
+                                    ++pr;
+                                    // printf("%lu\n", (unsigned long)pw);
                                 }
-                                dag.add_node(i, rrht.PW[d-1], PointerListLen);
+                                qt._i = pw;
+                                Q.push(qt);
                                 ++d;
                                 // outt << wd[node_i].index_of_W << " " << wd[node_i].index_of_R << " " << wd[node_i].len << " " << read.substr(wd[node_i].index_of_R, wd[node_i].len) << endl; 
                             }
+                        }
+
+                        
+
+
+                        if (i==Q.front()._i)
+                        {
+                            qt = Q.front();
+                            Q.pop();
+                            d = qt.d;
+                            while ((rrht.PW[d-1] >> 32) == qt.tar)
+                            {
+
+                                pw = qt.i;
+                                pr = rrht.PW[d-1];
+                                //if overlap
+                                vis[pr]=false;
+                                ++pw;
+                                ++pr;
+                                while(vis[pr] && dna_f[pw]==read[pr] && dag.check_node(pw, pr, qt.n, 1))
+                                {
+                                    vis[pr]=false;
+                                    ++pw;
+                                    ++pr;
+                                }
+                                ++d;
+                                // outt << wd[node_i].index_of_W << " " << wd[node_i].index_of_R << " " << wd[node_i].len << " " << read.substr(wd[node_i].index_of_R, wd[node_i].len) << endl; 
+                            }
+
                         }
                     }
                 }

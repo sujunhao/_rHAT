@@ -87,22 +87,35 @@ public:
     {
         node_i = 0;
     }
-	void add_node(uint32_t w, uint32_t r, size_t l)
+	size_t add_node(uint32_t w, uint32_t r, size_t l)
 	{
 		wd[node_i].index_of_W = w;
 		wd[node_i].index_of_R = r;
 		wd[node_i].len = l;
-		++node_i;
+		return ++node_i;
 	}
-	bool check_node(size_t i)
+
+    bool check_node(size_t i, size_t ri, size_t node_i_)
     {
-    	if (node_i > 1 && i > wd[node_i-1].index_of_W && (i - wd[node_i-1].index_of_W) == wd[node_i-1].len - PointerListLen + 1)
-    	{
-    		++wd[node_i-1].len;
-    		return true;
-    	}
+        if (node_i_ > 1 && i > wd[node_i_-1].index_of_W && (i - wd[node_i_-1].index_of_W) == wd[node_i_-1].len - PointerListLen + 1\
+            && ri > wd[node_i_-1].index_of_R && (ri - wd[node_i_-1].index_of_R) == wd[node_i_-1].len - PointerListLen + 1)
+        {
+            ++wd[node_i_-1].len;
+            return true;
+        }
         return false;
     }
+
+    bool check_node(size_t i, size_t ri, size_t node_i_, int z)
+    {
+        if (node_i_ > 1 && i > wd[node_i_-1].index_of_W && (i - wd[node_i_-1].index_of_W) == wd[node_i_-1].len - PointerListLen + 1\
+            && ri > wd[node_i_-1].index_of_R && (ri - wd[node_i_-1].index_of_R) == wd[node_i_-1].len - PointerListLen + 1)
+        {
+            return true;
+        }
+        return false;
+    }
+
 
     void print_log(string& dna_f, string& read, ofstream &outt)
     {
