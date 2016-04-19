@@ -333,7 +333,7 @@ int main(int argc, char** argv)
                                     ++pr;
                                     // printf("%lu\n", (unsigned long)pw);
                                 }
-                                qt._i = pw;
+                                qt._i = pw - 1;
                                 Q.push(qt);
                                 ++d;
                                 // outt << wd[node_i].index_of_W << " " << wd[node_i].index_of_R << " " << wd[node_i].len << " " << read.substr(wd[node_i].index_of_R, wd[node_i].len) << endl; 
