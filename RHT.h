@@ -20,10 +20,9 @@ uint32_t get_c[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
                     0, 0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
                     3};
 
+//# just for debug
 uint32_t MASK = 0xffffffff;
-
 #define BASE_MASK 0x3
-
 enum
 {
     BASE_A = 0x0,
@@ -32,8 +31,6 @@ enum
     BASE_T = 0x3,
 };
 
-
-//transformat form string to bitset(just for debug)
 uint32_t to_bit(string s)
 {
     uint32_t bitnum = 0, shift, bit_len = PointerListLen;
@@ -62,8 +59,6 @@ uint32_t to_bit(string s)
     }
     return bitnum;
 }
-
-//transformat form bitset to string(just for debug)
 string to_string(uint32_t bb)
 {
     uint32_t bitnum = bb, shift, base, mask, bit_len = PointerListLen;
@@ -95,6 +90,7 @@ string to_string(uint32_t bb)
     }
     return s;
 }
+//#
 
 
 class RHT
@@ -195,7 +191,6 @@ class RHT
                 P[p_tmp] = w_index+1;
                 last = p_tmp;
                 W[w_index++] = PW[i];
-                
             }
             P[last+1] = w_index+1;
         }

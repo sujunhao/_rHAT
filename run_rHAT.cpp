@@ -92,6 +92,13 @@ int main(int argc, char** argv)
     char sss[10000];
     char thesss[10000];
 
+
+    //#2
+    size_t WC[10000];
+    memset(WC, 0, sizeof(WC));
+    size_t tmp_wc, max_wc=0;
+    //#
+
     while (inRead >> read_m)
     {
         //-----------------------------------get each read seq, mark, and info
@@ -113,9 +120,10 @@ int main(int argc, char** argv)
 
         while (true)
         {
-            //-----------------------------------step 1 find hit windows  (tot 8s)
+            //-----------------------------------step 1 find hit windows 
             //Hwin is the first heap to set window priority_queue
 
+            //reverse read
             if (reverse)
             {
                 std::reverse(read.begin(),read.end());
@@ -142,6 +150,8 @@ int main(int argc, char** argv)
                 outt << read << endl;
             #endif
 
+
+            //#1 split the center read
             size_t len_up_stream = 0, len_down_stream = 0;
             size_t theLen = WindowListLen / 2;
             //from len_up_stream to theLen is the center string of read
@@ -157,63 +167,48 @@ int main(int argc, char** argv)
                 theLen = read_len;
             }
             // outt << read.substr(len_up_stream, theLen) << endl;
+            //#
 
-            priority_queue<WINDOW> Hwin;
-            WINDOW w, w_tmp;
+
+            //#2 get the most hitted window
             tmp = 0;
-            for (size_t i=len_up_stream; i < len_up_stream + theLen; ++i)
+            max_wc = 0;
+            for (size_t i=len_up_stream, k; i < len_up_stream + theLen; ++i)
             {
                 tmp = (tmp << 2) | get_c[read[i]];
                 tar = tmp & MASK;
                 if (i - len_up_stream >= PointerListLen - 1)
                 {
-                    if (rht.P[tar] && rht.P[tar+1] > rht.P[tar])
+                    k = rht.P[tar];
+                    while (k && rht.P[tar+1]>k)
                     {
-                        w.index_of_W = rht.W[rht.P[tar] - 1];
-                        // outt << read_m << " " << w.index_of_W << endl;
-                        w.a = rht.P[tar] + 1;
-                        w.b = rht.P[tar+1];
-                        Hwin.push(w);
+                        tmp_wc = rht.W[k - 1];
+                        max_wc = max(max_wc, tmp_wc);
+                        ++WC[tmp_wc];
+                        ++k;
                     }
                 }
             }
+
             //Hwin_cnt is the second heap to count window hit number
             priority_queue<WINDOW_CNT> Hwin_cnt;
             WINDOW_CNT wc;
-            uint32_t last = w.index_of_W, thecnt = 0;
-            while (!Hwin.empty())
+            for (size_t i=0, l=0; i<=max_wc; ++i)
             {
-                w = Hwin.top();
-                //do Hwin pop process
-                Hwin.pop();
-                if (w.b > w.a)
+                if (WC[i] > l)
                 {
-                    w_tmp.index_of_W = rht.W[w.a - 1];
-                    w_tmp.a = w.a + 1;
-                    w_tmp.b = w.b;
-                    Hwin.push(w_tmp);
-                }
-
-                //if a new window num appear, push into hwin_cnt
-                if (w.index_of_W != last)
-                {
-                    wc.index_of_W = last;
-                    wc.cnt = thecnt;
-                    last = w.index_of_W;
-                    thecnt = 1;
-
+                    wc.index_of_W = i;
+                    wc.cnt = WC[i];
                     if (wc.cnt < hit_too_many) 
                     {
                         Hwin_cnt.push(wc);
                         if (Hwin_cnt.size() > full) Hwin_cnt.pop();
-                        
+                        l = Hwin_cnt.top().cnt;
                     }
                 }
-                else 
-                {
-                    ++thecnt;
-                }
+                WC[i]=0;
             }
+            
             uint32_t z = full, mx;
             while(!Hwin_cnt.empty())
             {                
@@ -235,6 +230,9 @@ int main(int argc, char** argv)
                 reverse = true;
                 continue;
             }
+            //#
+
+
             //-----------------------------------step 2 create read hash table
             RHT rrht(read.size());
             tmp = 0;
