@@ -118,4 +118,4 @@ typedef struct window_node {
 which have window index, read index and length information
 
 
-[1]: (http://bioinformatics.oxfordjournals.org/content/early/2016/01/09/bioinformatics.btv662.full#abstract-1)
+[1]: http://bioinformatics.oxfordjournals.org/content/early/2016/01/09/bioinformatics.btv662.full#abstract-1
