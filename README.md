@@ -32,7 +32,7 @@ The second part run_rHAT is for using an RHT table to run rHAT process.
 To run rHAT should set the pointerlistlen length and window length. They are store in PointerListLen(size_t [11]) and WindowListLen(size_t [2048])
 
 ##The main process of rHAT program 
-
+```
 1.0 create_RHT process:
 1.1 first of all, the DNA string is store in a std::string named dna_w;
 1.2 for each char in dna_w, convert into a two bit numnber(A->00, C->01, G->10, T->11) and then append to a variant named tmp;
@@ -72,16 +72,18 @@ To run rHAT should set the pointerlistlen length and window length. They are sto
 
 5.0 print the result:
 5.1 for a read, there have k-highest hitted window indexes, for each hitted index, there have a max alignment score from 3.0 and 4.0. print the max score in that alignment and print out corebonding alignment;
-
+```
 
 --------------------------
 
 ##Main data structure used in create_RHT.cpp
 
 class RHT to create RHT table(see 1.5)
+```
 uint32_t *P;
 uint32_t *W;
 uint64_t *PW;
+```
 PW[] is a 64 bit number array. for each unit in PW[], the first 32 bit is the pointer index and the last 32 bit is the window index in DNA string;(see 1.6)
 P[] is use to store first 32 bit info in PW[]
 W[] is th last 32 bit array in PW[];
