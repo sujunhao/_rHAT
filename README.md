@@ -1,5 +1,9 @@
 # rHAT
 
+rHAT is a hash table base, fast sequence alignment algorithm
+it first construct a hash table(call RHT) in order to find the read's seed in the reference DNA sequence
+then do the extension process to get a alignment result
+
 [ref][1]
 
 
@@ -24,10 +28,10 @@ make
 
 -------
 
-The rHAT program has two different parts.The first part is create_RHT. The second part is run_rHAT.
+The rHAT program has two different parts.The first part is `create_RHT`. The second part is `run_rHAT`.
 
-The first part create_RHT is aimed to use a DNA array to create an RHT table.
-The second part run_rHAT is for using an RHT table to run rHAT process.
+The first part create_RHT is aimed to use a reference DNA array to create an RHT table.
+The second part run_rHAT is for using the RHT table and a read to run rHAT process.
 
 To run rHAT should set the pointerlistlen length and window length. They are store in PointerListLen(size_t [11]) and WindowListLen(size_t [2048])
 
