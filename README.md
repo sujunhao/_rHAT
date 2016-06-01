@@ -1,6 +1,7 @@
 # rHAT
 
 rHAT is a hash table base, fast sequence alignment algorithm
+
 it first construct a hash table(call RHT) in order to find the read's seed in the reference DNA sequence
 then do the extension process to get a alignment result
 
