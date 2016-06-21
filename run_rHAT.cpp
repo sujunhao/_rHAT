@@ -53,9 +53,11 @@ int main(int argc, char** argv)
             case 'r':
                 if (optarg)
                     strcpy(r_n, optarg);
+                break;
             case 'o':
                 if (optarg)
-                    strcpy(o_n, optarg);   
+                    strcpy(o_n, optarg);  
+                break; 
             case 'h':
                 printf("\tuse out_RHT to run rHAT\n");
                 printf("\trun_rHAT [option]\n");
