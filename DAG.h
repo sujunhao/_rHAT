@@ -12,6 +12,7 @@
 #define PX(X) std::cout << X << std::endl
 using namespace std;
 
+
 uint32_t t_wait = 1024;
 const uint8_t seq_nt4_tablet[256] = {
     4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,
@@ -42,6 +43,11 @@ uint8_t  refqry[2048];
 uint8_t *readqry_;
 uint8_t *refqry_;
 
+
+void cout_string_in_char(char* read, size_t l, size_t len, ofstream &outt)
+{
+    for (size_t i = 0; i<len; ++i) outt << read[i+l];
+}
 inline void transIntoDec(uint8_t *transtr,char *str, int length)
 {
     for (int i=0;i<length;++i) {
@@ -57,7 +63,8 @@ typedef struct window_node {
 
 class DAG
 {
-private:
+// private:
+public:
 	WINDOW_NODE *wd;
 	size_t **V;
 	uint32_t *dp;
@@ -117,6 +124,27 @@ public:
     }
 
 
+    void print_log(char* dna_f, char* read, ofstream &outt)
+    {
+        for (size_t o = p_index, i; o>0; --o)
+        {
+            if (o==p_index) continue;
+            i = path[o-1];
+            outt << wd[i].index_of_W << " " << wd[i].index_of_R << " " << wd[i].len << "\n";
+            cout_string_in_char(dna_f, wd[i].index_of_W + 1 - PointerListLen, wd[i].len, outt);
+            outt << endl;
+            cout_string_in_char(read, wd[i].index_of_R + 1 - PointerListLen, wd[i].len, outt);
+            outt << endl; 
+            outt << endl; 
+        }
+        // for (size_t i = 0; i<node_i; ++i)
+     //    {
+     //        outt << wd[i].index_of_W << " " << wd[i].index_of_R << " " << wd[i].len << " " << read.substr(wd[i].index_of_R + 1 - PointerListLen, wd[i].len) << " " << dna_f.substr(wd[i].index_of_W + 1 - PointerListLen, wd[i].len)<< endl; 
+     //        // outt << wd[i].index_of_W << " " << wd[i].index_of_R << " " << wd[i].len << endl; 
+     //    }
+     //    outt << endl;
+    }
+
     void print_log(string& dna_f, string& read, ofstream &outt)
     {
         for (size_t o = p_index, i; o>0; --o)
@@ -137,14 +165,18 @@ public:
     void find_path()
     {
     	dp = new uint32_t[node_i];
-    	memset(dp, 0, sizeof(dp));
+    	// memset(dp, 0, sizeof(dp));
+        for (size_t i=0; i<node_i; ++i) dp[i] = 0;
     	for (size_t i=0; i<node_i-1; ++i)
     	{
     		for (size_t j=i+1; j<node_i; ++j)
     		{
-    			if (V[i][j]) dp[j] = (dp[j] > wd[j].len+dp[i] ? dp[j] : wd[j].len+dp[i]);
-    		}
-    	}
+                  // printf("%lu %lu %lu | ", (unsigned long)wd[j].len, (unsigned long)dp[i], (unsigned long)dp[j]);
+                if (V[i][j]) dp[j] = (dp[j] > wd[j].len+dp[i] ? dp[j] : wd[j].len+dp[i]);
+    		      // printf("%lu %lu %lu | ", (unsigned long)i, (unsigned long)j, (unsigned long)dp[j]);
+            }
+            // printf("\n");
+        }
     	size_t thenode = node_i - 1;
 
     	//path from 1 to p_index) is the index of path string
@@ -263,6 +295,144 @@ public:
         return score;
     }
 
+    double do_alignment(char* dna_f, size_t window_up, size_t window_down, char*  read, size_t read_len, Cigar *ss, FILE* outt)
+    {
+        // for (size_t o = p_index, i; o>0; --o)
+        // {
+        //     if (o==p_index) continue;
+        //     i = path[o-1];
+        //     outt << wd[i].index_of_W << " " << wd[i].index_of_R << " " << wd[i].len << " " << read.substr(wd[i].index_of_R + 1 - PointerListLen, wd[i].len) << " " << dna_f.substr(wd[i].index_of_W + 1 - PointerListLen, wd[i].len)<< endl; 
+        // }
+        // outt<< "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n";
+
+        size_t last_w=window_up + PointerListLen - 1, last_r=PointerListLen-1;
+        double score=0;
+        size_t index_ss=0;
+        char snum[100];
+        memset(snum, 0, sizeof(snum));
+        size_t i, w, r, l;
+        printf("%lu %lu\n", (unsigned long)(p_index), (unsigned long)(window_down));
+        // if (p_index >= 3)
+        {
+            i = path[p_index-2];
+            w = wd[i].index_of_W;
+            r = wd[i].index_of_R;
+            PX(i);
+            //     printf("%lu %lu %lu %lu\n", (unsigned long)(last_w - PointerListLen + 1), (unsigned long)(w-last_w), (unsigned long)(last_r - PointerListLen + 1), (unsigned long)(r-last_r));
+
+            if (w!=last_w && r!=last_r)
+            {
+                printf("%lu %lu %lu %lu\n", (unsigned long)(last_w - PointerListLen + 1), (unsigned long)(w-last_w), (unsigned long)(last_r - PointerListLen + 1), (unsigned long)(r-last_r));
+                // score+=get_alignment(dna_f, last_w - PointerListLen + 1, w-last_w, read, last_r - PointerListLen + 1, r-last_r, w-last_w, r-last_r, w-last_w, r-last_r, ss);
+                score+=get_alignment(dna_f, last_w - PointerListLen + 1, w-last_w, read, last_r - PointerListLen + 1, r-last_r, w-last_w, r-last_r, w-last_w, r-last_r, ss);
+            }
+            last_w = w;
+            last_r = r;
+        }
+
+        for (size_t i = 0; i<(ss->length); ++i)
+        {
+            cout << cigar_int_to_len(ss->seq[i]) << cigar_int_to_op(ss->seq[i]);
+        }
+        cout << endl;
+
+        // printf("2333\n");
+
+        for (size_t o = p_index; o>0; --o)
+        {
+            if (o == p_index) continue;
+            i = path[o-1];
+
+            PX(i);
+            w = wd[i].index_of_W;
+            r = wd[i].index_of_R;
+            l = wd[i].len;
+
+
+            if (w!=last_w || r!=last_r)
+            {
+                if (w!=last_w && r!=last_r)
+                {
+                    // printf("%lu %lu %lu %lu\n", (unsigned long)(last_w), (unsigned long)(w), (unsigned long)(last_r), (unsigned long)(r));
+                    // printf("%lu %lu %lu %lu\n", (unsigned long)(last_w - PointerListLen + 1), (unsigned long)(w-last_w), (unsigned long)(last_r - PointerListLen + 1), (unsigned long)(r-last_r));
+                    score+=get_alignment(dna_f, last_w - PointerListLen + 1, w-last_w, read, last_r - PointerListLen + 1, r-last_r, 0, 0, w-last_w, r-last_r, ss);
+                }
+                else if(w==last_w)
+                {
+                    score+=(r-last_r)*scg;
+                    // sprintf(snum, "%lu", (unsigned long)(r-last_r));
+                    // strcat(ss, snum);
+                    // strcat(ss, "I");
+                    ss->seq[(ss->length)++] = to_cigar_int((uint32_t)(r-last_r), 'I');
+                }
+                else if(r==last_r)
+                {
+                    score+=(w-last_w)*scg;
+                    // sprintf(snum, "%lu", (unsigned long)(w-last_w));
+                    // strcat(ss, snum);
+                    // strcat(ss, "D");
+                    ss->seq[(ss->length)++] = to_cigar_int((uint32_t)(w-last_w), 'D');
+
+                }
+
+                for (size_t i = 0; i<(ss->length); ++i)
+                {
+                    cout << cigar_int_to_len(ss->seq[i]) << cigar_int_to_op(ss->seq[i]);
+                }
+                cout << endl;
+
+
+
+            }
+            last_w = w+l;
+            last_r = r+l;
+            score+=(l)*scy;
+            // sprintf(snum, "%lu", (unsigned long)l);
+            // strcat(ss, snum);
+            // strcat(ss, "M");
+            ss->seq[(ss->length)++] = to_cigar_int((uint32_t)(l), 'M');
+
+            // outt << wd[i].index_of_W << " " << wd[i].index_of_R << " " << wd[i].len << " " << read.substr(wd[i].index_of_R + 1 - PointerListLen, wd[i].len) << " " << dna_f.substr(wd[i].index_of_W + 1 - PointerListLen, wd[i].len)<< endl; 
+            for (size_t i = 0; i<(ss->length); ++i)
+            {
+                cout << cigar_int_to_len(ss->seq[i]) << cigar_int_to_op(ss->seq[i]);
+            }
+            cout << endl;
+        }
+
+     
+
+
+        // // printf("2333\n");
+        // if (p_index >= 3)
+        {
+            w = window_down;
+            r = read_len;
+            if (w!=last_w && r!=last_r)
+            {
+                score += get_alignment(dna_f, last_w - PointerListLen + 1, w-last_w, read, last_r - PointerListLen + 1, r-last_r, 0, 0, 0, 0, ss);
+            }
+            last_w = w;
+            last_r = r;
+        }
+
+        for (size_t i = 0; i<(ss->length); ++i)
+        {
+            cout << cigar_int_to_len(ss->seq[i]) << cigar_int_to_op(ss->seq[i]);
+        }
+        cout << endl;
+        refine_cigar(ss);
+        for (size_t i = 0; i<(ss->length); ++i)
+        {
+            cout << cigar_int_to_len(ss->seq[i]) << cigar_int_to_op(ss->seq[i]);
+        }
+        cout << endl;
+
+        // outt << ss << endl;
+        printf("%lf\n", score);
+        return score;
+
+    }
     double do_alignment(char* dna_f, size_t window_up, size_t window_down, char*  read, size_t read_len, char* ss, FILE* outt)
     {
         // for (size_t o = p_index, i; o>0; --o)
@@ -279,7 +449,7 @@ public:
         char snum[100];
         memset(snum, 0, sizeof(snum));
         size_t i, w, r, l;
-        // printf("%lu %lu\n", (unsigned long)(p_index), (unsigned long)(window_down));
+        printf("%lu %lu\n", (unsigned long)(p_index), (unsigned long)(window_down));
         if (p_index >= 3)
         {
             i = path[p_index-2];
@@ -611,6 +781,16 @@ public:
         uint32_t iw, ir, jw, jr;
     	size_t il;
 
+        // for (size_t i=0; i<node_i; ++i)
+        // {
+        //     iw = wd[i].index_of_W;
+        //     ir = wd[i].index_of_R;
+        //     il = wd[i].len;
+        //     printf("%lu %lu %lu ", (unsigned long)iw, (unsigned long)ir, (unsigned long)il);
+        //     printf("\n");
+        // }
+
+
         for (size_t i=0; i<node_i-1; ++i)
         {
             iw = wd[i].index_of_W;
@@ -621,11 +801,16 @@ public:
                 V[i][j]=0;
                 jw = wd[j].index_of_W;
                 jr = wd[j].index_of_R;
-                if (jw >= il + iw && jr >= il + ir && jr <= ir + il + t_wait)
+                // printf("%lu %lu %lu ", (unsigned long)jw, (unsigned long)(il + iw ), (unsigned long)iw);
+                // printf("%lu %lu %lu ", (unsigned long)jr, (unsigned long)(il + ir ), (unsigned long)ir);
+
+                if (jw >= il + iw && jr >= il  + ir && jr <= ir + il + t_wait)
                 {
                     V[i][j] = 1;
                 }
+                // printf("(%lu %lu) %lu ", (unsigned long)i, (unsigned long)j, (unsigned long)V[i][j]);
             }
+            // printf("\n");
         }
     }
 };

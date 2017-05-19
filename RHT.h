@@ -31,6 +31,7 @@ enum
     BASE_T = 0x3,
 };
 
+
 uint32_t to_bit(string s)
 {
     uint32_t bitnum = 0, shift, bit_len = PointerListLen;
