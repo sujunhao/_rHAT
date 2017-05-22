@@ -12,6 +12,7 @@
 #define PX(X) std::cout << X << std::endl
 using namespace std;
 
+#define PRINTALN
 
 uint32_t t_wait = 1024;
 const uint8_t seq_nt4_tablet[256] = {
@@ -130,7 +131,7 @@ public:
         {
             if (o==p_index) continue;
             i = path[o-1];
-            outt << wd[i].index_of_W << " " << wd[i].index_of_R << " " << wd[i].len << "\n";
+            outt << wd[i].index_of_W - PointerListLen + 1 << " " << wd[i].index_of_R - PointerListLen + 1<< " " << wd[i].len << "\n";
             cout_string_in_char(dna_f, wd[i].index_of_W + 1 - PointerListLen, wd[i].len, outt);
             outt << endl;
             cout_string_in_char(read, wd[i].index_of_R + 1 - PointerListLen, wd[i].len, outt);
@@ -311,18 +312,18 @@ public:
         char snum[100];
         memset(snum, 0, sizeof(snum));
         size_t i, w, r, l;
-        printf("%lu %lu\n", (unsigned long)(p_index), (unsigned long)(window_down));
+        // printf("%lu %lu\n", (unsigned long)(p_index), (unsigned long)(window_down));
         // if (p_index >= 3)
         {
             i = path[p_index-2];
             w = wd[i].index_of_W;
             r = wd[i].index_of_R;
-            PX(i);
+            // PX(i);
             //     printf("%lu %lu %lu %lu\n", (unsigned long)(last_w - PointerListLen + 1), (unsigned long)(w-last_w), (unsigned long)(last_r - PointerListLen + 1), (unsigned long)(r-last_r));
 
             if (w!=last_w && r!=last_r)
             {
-                printf("%lu %lu %lu %lu\n", (unsigned long)(last_w - PointerListLen + 1), (unsigned long)(w-last_w), (unsigned long)(last_r - PointerListLen + 1), (unsigned long)(r-last_r));
+                // printf("%lu %lu %lu %lu\n", (unsigned long)(last_w - PointerListLen + 1), (unsigned long)(w-last_w), (unsigned long)(last_r - PointerListLen + 1), (unsigned long)(r-last_r));
                 // score+=get_alignment(dna_f, last_w - PointerListLen + 1, w-last_w, read, last_r - PointerListLen + 1, r-last_r, w-last_w, r-last_r, w-last_w, r-last_r, ss);
                 score+=get_alignment(dna_f, last_w - PointerListLen + 1, w-last_w, read, last_r - PointerListLen + 1, r-last_r, w-last_w, r-last_r, w-last_w, r-last_r, ss);
             }
@@ -330,31 +331,36 @@ public:
             last_r = r;
         }
 
+        #ifdef PRINTALN
+        cout << "A: ";
         for (size_t i = 0; i<(ss->length); ++i)
         {
             cout << cigar_int_to_len(ss->seq[i]) << cigar_int_to_op(ss->seq[i]);
         }
         cout << endl;
+        #endif
 
         // printf("2333\n");
 
+        // if (p_index >= 3)
         for (size_t o = p_index; o>0; --o)
         {
             if (o == p_index) continue;
             i = path[o-1];
 
-            PX(i);
+            // PX(i);
             w = wd[i].index_of_W;
             r = wd[i].index_of_R;
             l = wd[i].len;
 
+            // printf("%d %d %d %d\n, ", (int)last_w, (int)w, (int)last_r, (int)r);
 
             if (w!=last_w || r!=last_r)
             {
                 if (w!=last_w && r!=last_r)
                 {
-                    // printf("%lu %lu %lu %lu\n", (unsigned long)(last_w), (unsigned long)(w), (unsigned long)(last_r), (unsigned long)(r));
-                    // printf("%lu %lu %lu %lu\n", (unsigned long)(last_w - PointerListLen + 1), (unsigned long)(w-last_w), (unsigned long)(last_r - PointerListLen + 1), (unsigned long)(r-last_r));
+                    printf("%lu %lu %lu %lu\n", (unsigned long)(last_w), (unsigned long)(w), (unsigned long)(last_r), (unsigned long)(r));
+                    printf("%lu %lu %lu %lu\n", (unsigned long)(last_w - PointerListLen + 1), (unsigned long)(w-last_w), (unsigned long)(last_r - PointerListLen + 1), (unsigned long)(r-last_r));
                     score+=get_alignment(dna_f, last_w - PointerListLen + 1, w-last_w, read, last_r - PointerListLen + 1, r-last_r, 0, 0, w-last_w, r-last_r, ss);
                 }
                 else if(w==last_w)
@@ -375,17 +381,21 @@ public:
 
                 }
 
+                #ifdef PRINTALN
                 for (size_t i = 0; i<(ss->length); ++i)
                 {
                     cout << cigar_int_to_len(ss->seq[i]) << cigar_int_to_op(ss->seq[i]);
                 }
                 cout << endl;
+                #endif
 
 
 
             }
             last_w = w+l;
             last_r = r+l;
+            // printf("%d %d %d %d\n, ", (int)last_w, (int)w, (int)last_r, (int)r);
+
             score+=(l)*scy;
             // sprintf(snum, "%lu", (unsigned long)l);
             // strcat(ss, snum);
@@ -393,11 +403,14 @@ public:
             ss->seq[(ss->length)++] = to_cigar_int((uint32_t)(l), 'M');
 
             // outt << wd[i].index_of_W << " " << wd[i].index_of_R << " " << wd[i].len << " " << read.substr(wd[i].index_of_R + 1 - PointerListLen, wd[i].len) << " " << dna_f.substr(wd[i].index_of_W + 1 - PointerListLen, wd[i].len)<< endl; 
+            #ifdef PRINTALN
+            cout << "B: ";
             for (size_t i = 0; i<(ss->length); ++i)
             {
                 cout << cigar_int_to_len(ss->seq[i]) << cigar_int_to_op(ss->seq[i]);
             }
             cout << endl;
+            #endif
         }
 
      
@@ -406,30 +419,37 @@ public:
         // // printf("2333\n");
         // if (p_index >= 3)
         {
-            w = window_down;
-            r = read_len;
+            w = window_down + PointerListLen - 1;
+            r = read_len + PointerListLen - 1;
+            #ifdef PRINTALN
+            printf("%d %d %d %d\n, ", (int)last_w, (int)w, (int)last_r, (int)r);
+            #endif
             if (w!=last_w && r!=last_r)
             {
-                score += get_alignment(dna_f, last_w - PointerListLen + 1, w-last_w, read, last_r - PointerListLen + 1, r-last_r, 0, 0, 0, 0, ss);
+                score += get_alignment(dna_f, last_w - PointerListLen + 1, w-last_w, read, last_r - PointerListLen + 1, r-last_r, 0, 0, 0, r-last_r, ss);
             }
             last_w = w;
             last_r = r;
         }
-
+        #ifdef PRINTALN
+        cout << "C: ";
         for (size_t i = 0; i<(ss->length); ++i)
         {
             cout << cigar_int_to_len(ss->seq[i]) << cigar_int_to_op(ss->seq[i]);
         }
         cout << endl;
+        #endif
         refine_cigar(ss);
+        #ifdef PRINTALN
         for (size_t i = 0; i<(ss->length); ++i)
         {
             cout << cigar_int_to_len(ss->seq[i]) << cigar_int_to_op(ss->seq[i]);
         }
         cout << endl;
+        #endif
 
         // outt << ss << endl;
-        printf("%lf\n", score);
+        // printf("%lf\n", score);
         return score;
 
     }

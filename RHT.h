@@ -166,6 +166,14 @@ class RHT
             //     P[p_tmp] = i+1;
             // }
         }
+        void print_pw(std::ofstream &outt)
+        {
+            for (size_t i = 0; i<index; ++i)
+            {
+                outt << to_string(PW[i] >> 32) << " " << (uint32_t)PW[i] << "\n";
+            }
+        }
+
         void create_p_w()
         {
             std::sort(PW, PW+index);

@@ -19,6 +19,7 @@ KSEQ_INIT(gzFile, gzread)
 
 
 #define PRINTLOG
+#define READINFO
 
 void to_upper(char *s)
 {
@@ -197,6 +198,7 @@ int main(int argc, char** argv)
     //#
     RHT rrht(30000);
     bool vis[30000];
+    size_t vis_m[30000];
 
 
     char *read_s;
@@ -207,6 +209,49 @@ int main(int argc, char** argv)
         kseq_t *seq2 = kseq_init(fp2);
         while ((l = kseq_read(seq2)) >= 0) 
         {
+            #ifdef READINFO
+            int max_pattern=1000;
+            char *seq_n = (char *)malloc(sizeof(char) * (100 + 1));
+            char *new_p = (char *)malloc(sizeof(char) * (max_pattern + 1));
+            strcpy(seq_n, seq2->name.s);
+            char *seq_c = (char *)malloc(sizeof(char) * (max_pattern * 2 + 100));
+            strcpy(seq_c, seq2->comment.s);
+            char *p = strtok(seq_c, " =");
+            char *p1, *p2;
+            char *config, *chrom, *hap_ref, *edit_s;
+            size_t begin, end;
+            while (p != NULL)
+            {
+                p1 = p;
+                p2 = strtok(NULL, " =");
+                p = strtok(NULL, " =");
+                // printf("%s %s\n", p1, p2);
+                if (strcmp(p1, "chrom") == 0)
+                {
+                    chrom = p2;
+                }
+                else if (strcmp(p1, "orig_begin") == 0)
+                {
+                    begin = atoi(p2);
+                }
+                else if (strcmp(p1, "orig_end") == 0)
+                {
+                    end = atoi(p2);
+                    end += 20;
+                }
+                else if (strcmp(p1, "haplotype_infix") == 0)
+                {
+                    hap_ref = p2;
+                }
+                else if (strcmp(p1, "edit_string") == 0)
+                {
+                    edit_s = p2;
+                }
+            }
+            // outt << seq_n << " " << chrom << " " << begin << " " << end << " " << edit_s << " ";
+            outt << seq_n << " " << begin << " " << edit_s << " ";
+
+            #endif
             to_upper(seq2->seq.s);
             // // ref = seq1->seq.s;
             read_len = (seq2->seq.l);
@@ -216,9 +261,9 @@ int main(int argc, char** argv)
             // size_t read_len = read.size();
             
             
-            double score = -INF, score_enough=100;
-            double score_too_low=-100;
-            size_t windown_hit_too_low=10, hit_too_many=500;
+            double score = -INF, score_enough=read_len*0.8;
+            double score_too_low=-read_len*0.8;
+            size_t windown_hit_too_low=10, hit_too_many=1000;
             string thess(read_len+WindowListLen, 0);
             thess.clear();
 
@@ -337,13 +382,14 @@ int main(int argc, char** argv)
                     WC[i]=0;
                 }
                 
-                uint32_t z = full, mx;
+                uint32_t z = full, mx = 0;
+                z = min((int)z, (int)Hwin_cnt.size());
                 while(!Hwin_cnt.empty())
                 {                
                     #ifdef PRINTLOG
                         //print the hit window and their hit times
                         // outt << Hwin_cnt.top().cnt << " " << Hwin_cnt.top().index_of_W << endl;
-                        outt << Hwin_cnt.top().cnt << " " << Hwin_cnt.top().index_of_W << endl;
+                        outt << Hwin_cnt.top().cnt << " " << Hwin_cnt.top().index_of_W * (WindowListLen / 2) << endl;
                     #endif
                     hit_w[--z] = Hwin_cnt.top().index_of_W;
                     if (z==0) 
@@ -355,6 +401,11 @@ int main(int argc, char** argv)
                 
                 if (mx < windown_hit_too_low)
                 {
+                    #ifdef PRINTLOG
+                        //print the hit window and their hit times
+                        // outt << Hwin_cnt.top().cnt << " " << Hwin_cnt.top().index_of_W << endl;
+                        outt << mx << " window hit too low\n";
+                    #endif
                     if (reverse) break;
                     reverse = true;
                     continue;
@@ -372,26 +423,28 @@ int main(int argc, char** argv)
                     if (i >= PointerListLen - 1)
                     {
                         rrht.link_string(tar, i);
+                        // outt << to_string(tar) << " " << i << endl;
                     }
                 }
                 rrht.sort_pw();
+                // rrht.print_pw(outt);
 
                 //-----------------------------------step 3 for each window hit do alignment
                 uint32_t last_z=hit_w[0]+5;
                 for (size_t z=0; z<full; ++z)
                 {
                     //-----------------------------------struct window and read main body
-                    outt  << last_z << " " << hit_w[z] << endl;
+                    // outt  << last_z << " " << hit_w[z] << endl;
                     
-                    if (abs(1.0*last_z-hit_w[z]) <= 1) break;
+                    // if (abs(1.0*last_z-hit_w[z]) <= 1) break;
                     // if (abs(hit_w[z]-last_z) <= 1) break;
                     last_z = hit_w[z];
                     size_t window_up, window_down;
                     window_up = ( hit_w[z] * (WindowListLen / 2) >= len_up_stream ) ? ( hit_w[z] * (WindowListLen / 2) - len_up_stream ) : (0);
                     window_down = ( hit_w[z] * (WindowListLen / 2) + WindowListLen + len_down_stream <= ref_len ) ? ( hit_w[z] * (WindowListLen / 2) + WindowListLen + len_down_stream ) : (ref_len);
                     #ifdef PRINTLOG
-                    outt  << last_z << endl;
-                    outt  << window_up << " " << window_down << endl;
+                    // outt  << last_z << endl;
+                    // outt  << "> " << window_up << " " << window_down << endl;
                     // outt << dna_f.substr(window_up, window_down - window_up) << endl;
 
                     // printf("%lu %lu\n", (unsigned long)window_up, (unsigned long)window_down);
@@ -407,14 +460,18 @@ int main(int argc, char** argv)
                     //the first node
                     dag.add_node(window_up + PointerListLen - 1, PointerListLen - 1, 0);
                     
+                    #ifdef PRINTLOG
                     outt << "> ";
                     cout_string_in_char(c_read, (dag.wd)[(dag.node_i-1)].index_of_R - PointerListLen, (dag.wd)[(dag.node_i-1)].len, outt);
                     outt << endl; 
+                    #endif
 
                     tmp = 0;
                     memset(vis, 0, sizeof(vis));
+                    memset(vis_m, 0, sizeof(vis_m));
                     queue<WQ> Q;
                     WQ qt;
+                    size_t s_ref_len = window_down - window_up;
                     for (size_t i=window_up; i < window_down; ++i)
                     {
                         tmp = (tmp << 2) | get_c[c_dna_f[i]];
@@ -426,54 +483,68 @@ int main(int argc, char** argv)
                             //if find window & read match l-mer
                             uint32_t d = 0;
                             d = rrht.search(tar);
-                            size_t pw, n;
+                            size_t pw, n, ttmp;
                             uint32_t pr;
                             // printf("%lu\n", (unsigned long)d);
+                            // outt << "|";
+
                             if (d)
-                            {
-                                // outt << to_string(tar) << " " << d << endl;
-                                while ((rrht.PW[d-1] >> 32) == tar && !vis[(uint32_t)rrht.PW[d-1]])
+                            {   
+                                while ((rrht.PW[d-1] >> 32) == tar)
                                 {
-                                    // outt << "asd" << endl;
-                                    pw = i;
-                                    pr = rrht.PW[d-1];
-                                    n = dag.add_node(pw, pr, PointerListLen);
+                                    // outt << "-";
+                                    // outt << ">" << (uint32_t)rrht.PW[d-1] << " " << to_string((rrht.PW[d-1] >> 32)) << endl;
+                                    // outt << (i - window_up + read_len - (uint32_t)rrht.PW[d-1]) << endl;
 
-                                    qt.i = i;
-                                    qt.d = d;
-                                    qt.tar = tar;
-                                    qt.n = n;
-                                    // outt << "+ " << pr << " "<< i - window_up << " ";
-
-                                    //if overlap
-                                    vis[pr]=true;
-                                    ++pw;
-                                    ++pr;
-                                    while(!vis[pr] && c_dna_f[pw]==c_read[pr] && dag.check_node(pw, pr, n))
+                                    if (!vis[(i - window_up + read_len - (uint32_t)rrht.PW[d-1])])
                                     {
-                                        // vis[pr]=true;
+                                    // outt << ">" << (uint32_t)rrht.PW[d-1] << " " << to_string((rrht.PW[d-1] >> 32)) << endl;
+                                        // outt << "asd" << endl;
+                                        pw = i;
+                                        pr = rrht.PW[d-1];
+                                        n = dag.add_node(pw, pr, PointerListLen);
+
+                                        qt.i = i;
+                                        qt.d = d;
+                                        qt.tar = tar;
+                                        qt.n = n;
+
+                                        //if overlap
+                                        vis[(i - window_up + read_len - pr)]=true;
+                                        // outt << "B: " << pr << " "<<(i - window_up + read_len - pr) << " ";
+                                        ttmp = (i - window_up + read_len - pr);
                                         ++pw;
                                         ++pr;
-                                        // outt << (unsigned long)pw - window_up << "/" << pr << " ";
+                                        while(c_dna_f[pw]==c_read[pr] && dag.check_node(pw, pr, n))
+                                        {
+                                            // vis[(pw - window_up + read_len - pr)]=true;
+                                            ++pw;
+                                            ++pr;
+                                            // outt << (unsigned long)pw - window_up << "/" << pr << " ";
+                                        }
+                                        // for (size_t t = 1; t<PointerListLen-1; ++t) vis[pr + t] = true;
+                                        qt._i = pw - 1;
+                                        vis_m[pw-window_up] = 1 + ttmp;
+                                        Q.push(qt);
+                                        // outt << wd[node_i].index_of_W << " " << wd[node_i].index_of_R << " " << wd[node_i].len << " ";
+                                        #ifdef PRINTLOG
+                                        outt << "+ " << pr << " "<< qt._i - window_up << " ";
+                                        cout_string_in_char(c_read, (dag.wd)[(dag.node_i-1)].index_of_R - PointerListLen + 1, (dag.wd)[(dag.node_i-1)].len, outt);
+                                        outt << endl; 
+                                        #endif
                                     }
-                                    // for (size_t t = 1; t<PointerListLen-1; ++t) vis[pr + t] = true;
-                                    qt._i = pw - 1;
-                                    Q.push(qt);
                                     ++d;
-                                    // outt << wd[node_i].index_of_W << " " << wd[node_i].index_of_R << " " << wd[node_i].len << " ";
-                                    outt << "+ " << pr << " "<< qt._i - window_up << " ";
-                                    cout_string_in_char(c_read, (dag.wd)[(dag.node_i-1)].index_of_R - PointerListLen + 1, (dag.wd)[(dag.node_i-1)].len, outt);
-                                    outt << endl; 
                                 }
                             }
 
                             
 
 
-                            if (i==Q.front()._i)
+                            if (vis_m[i-window_up+1])
                             {
-                                // outt << i - window_up << "> \n" ;
-                                memset(vis, 0, sizeof(vis));
+                                vis[vis_m[i-window_up+1] - 1] = 0;
+                                // outt << "F " << vis_m[i-window_up+1] - 1 << " " << i - window_up << "> \n" ;
+                                // memset(vis, 0, sizeof(vis));
                                 // qt = Q.front();
                                 // Q.pop();
                                 // d = qt.d;
@@ -537,8 +608,10 @@ int main(int argc, char** argv)
                     }
                     outt << endl;
 
+                    #ifdef PRINTLOG
+                    outt << t << endl;
                     outt<< "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n";
-
+                    #endif
 
                     if ((t) > score)
                     {
@@ -559,7 +632,7 @@ int main(int argc, char** argv)
                 }
 
                 if (score >= score_enough) break;
-                break;
+                // break;
                 if (reverse) break;
                 reverse = true;
             }

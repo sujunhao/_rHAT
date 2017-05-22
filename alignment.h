@@ -375,9 +375,11 @@ double get_alignment(char* s1, size_t last_w, size_t lw, char* s2, size_t last_r
 } 
 
 
-double get_alignment(char* s1, size_t last_w, size_t lw, char* s2, size_t last_r, size_t lr, size_t si, size_t sj, size_t ei, size_t ej, Cigar *ss)
+double get_alignment(char* s1, size_t last_w, size_t lw, char* s2, size_t last_r, size_t lr, size_t si, size_t sj, size_t ei, size_t ej, Cigar *ss, int log=0)
 {
-    // std::cout << s1.substr(last_w, lw) << '\n' << s2.substr(last_r, lr) << '\n';
+    // printf(">%d %d\n", (int)lw, (int)lr);
+    if (log)
+        printf(">%.*s\n>%.*s\n", (int)lw, s1+last_w, (int)lr, s2+last_r);
     if (lw >= mx_len || lr>=mx_len) return 0;
     size_t offset_1 = last_w, offset_2 = last_r;
     size_t n_s1 = lw, n_s2 = lr, n_s;
@@ -399,9 +401,11 @@ double get_alignment(char* s1, size_t last_w, size_t lw, char* s2, size_t last_r
             if (j) tmp = std::max(tmp, dp[i][j-1] + scg);
             if (i > 0 && j > 0) tmp = std::max(tmp, dp[i-1][j-1] + ((s1[offset_1 + i-1]==s2[offset_2 + j-1]) ? scy : scn));
             dp[i][j] = tmp;
-            // printf("%3.0lf ", dp[i][j]);
+            // if (log)
+            //     printf("%3.0lf ", dp[i][j]);
         }
-        // printf("\n");
+        // if (log)
+        //     printf("\n");
     }
     // find the last dp position to trace
     size_t xi=0, xj=0, index_v=0;
