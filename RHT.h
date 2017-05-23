@@ -126,7 +126,8 @@ class RHT
 
         void clear()
         {
-            memset(PW, sizeof(PW), 0);
+            for(size_t i=0; i<index; ++i)   PW[i] = 0;
+            // memset(PW, sizeof(PW), 0);
             // memset(P, sizeof(P), 0);
             index = 0;
         }

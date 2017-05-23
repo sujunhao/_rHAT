@@ -11,7 +11,7 @@
 #include <stdint.h>
 using namespace std;
 
-double scy = 1, scn = -2, scg = -2;
+double scy = 1, scn = -2, scg = -3;
 double INF = 0xFFFFFFFF;
 double zero = 1e-16;
 const uint32_t mx_len=15000;
@@ -71,6 +71,13 @@ static inline char cigar_int_to_op(uint32_t cigar_int)
     return (cigar_int & 0xfU) > 8 ? 'M': MAPSTR[cigar_int & 0xfU];
 }
 
+//copy cigar 2 to 1
+static inline char copy_cigar(Cigar *cg1, Cigar *cg2)
+{
+    size_t len = cg2->length;
+    cg1->length = len;
+    for (size_t i=0; i<len; ++i) cg1->seq[i] = cg2->seq[i];
+} 
 
 /*! @function       Extract length of a CIGAR operation from CIGAR 32-bit unsigned integer
     @param  cigar_int   32-bit unsigned integer, representing encoded CIGAR operation and length

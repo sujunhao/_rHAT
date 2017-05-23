@@ -13,5 +13,6 @@ E_coli/
 *.tar
 *.swap
 test*
-
-
+prety_read.fa
+log
+*.out_RHT

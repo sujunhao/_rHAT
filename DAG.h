@@ -12,7 +12,7 @@
 #define PX(X) std::cout << X << std::endl
 using namespace std;
 
-#define PRINTALN
+// #define PRINTALN
 
 uint32_t t_wait = 1024;
 const uint8_t seq_nt4_tablet[256] = {
@@ -67,25 +67,41 @@ class DAG
 // private:
 public:
 	WINDOW_NODE *wd;
-	size_t **V;
-	uint32_t *dp;
+    int32_t **V;
+	bool **Link;
+	int32_t *dp;
 	size_t node_i;
 	size_t *path;
 	size_t p_index;
+    size_t _max_num;
 
 public:
 	DAG(size_t max_num)
 	{
+        _max_num = max_num;
 		wd = new WINDOW_NODE[max_num];
+        V = new int32_t*[max_num];
+        for (size_t i=0; i<max_num; ++i) V[i] = new int32_t[max_num];
+
+        Link = new bool*[max_num];
+        for (size_t i=0; i<max_num; ++i) Link[i] = new bool[max_num];
+
+        dp = new int32_t[max_num];
+        
 		node_i = 0;
 	}
 	~DAG()
 	{
-		if (V != NULL)
+		if (Link != NULL)
 		{
-			for (size_t i=0; i<node_i; ++i) delete [] V[i];
+			for (size_t i=0; i<_max_num; ++i) delete [] V[i];
 	        delete [] V;
 		}
+        if (Link != NULL)
+        {
+            for (size_t i=0; i<_max_num; ++i) delete [] Link[i];
+            delete [] Link;
+        }
 		if (dp != NULL)	delete [] dp;
 		if (path != NULL) delete [] path;
         delete [] wd;
@@ -162,46 +178,7 @@ public:
      //    }
      //    outt << endl;
     }
-
-    void find_path()
-    {
-    	dp = new uint32_t[node_i];
-    	// memset(dp, 0, sizeof(dp));
-        for (size_t i=0; i<node_i; ++i) dp[i] = 0;
-    	for (size_t i=0; i<node_i-1; ++i)
-    	{
-    		for (size_t j=i+1; j<node_i; ++j)
-    		{
-                  // printf("%lu %lu %lu | ", (unsigned long)wd[j].len, (unsigned long)dp[i], (unsigned long)dp[j]);
-                if (V[i][j]) dp[j] = (dp[j] > wd[j].len+dp[i] ? dp[j] : wd[j].len+dp[i]);
-    		      // printf("%lu %lu %lu | ", (unsigned long)i, (unsigned long)j, (unsigned long)dp[j]);
-            }
-            // printf("\n");
-        }
-    	size_t thenode = node_i - 1;
-
-    	//path from 1 to p_index) is the index of path string
-    	size_t p_tmp;
-    	p_index = 0;
-    	path = new size_t[node_i];
-    	while (thenode != 0)
-    	{
-    		p_tmp = thenode;
-    		for (size_t i = 0; i< p_tmp; ++i)
-    		{
-    			if (i==thenode || V[i][thenode]==0) continue;
-    			if (dp[thenode] == wd[thenode].len + dp[i])
-    			{
-    				thenode = i;
-    				// PX(i);
-    				path[p_index++] = i;
-    				break;
-    			}
-    		}
-    		if(thenode == p_tmp) break;
-    	}
-    }
-    
+  
     double do_alignment(string& dna_f, size_t window_up, size_t window_down, string&  read, string&ss, ofstream& outt)
     {
         // for (size_t o = p_index, i; o>0; --o)
@@ -308,9 +285,9 @@ public:
 
         size_t last_w=window_up + PointerListLen - 1, last_r=PointerListLen-1;
         double score=0;
-        size_t index_ss=0;
-        char snum[100];
-        memset(snum, 0, sizeof(snum));
+        // size_t index_ss=0;
+        // char snum[100];
+        // memset(snum, 0, sizeof(snum));
         size_t i, w, r, l;
         // printf("%lu %lu\n", (unsigned long)(p_index), (unsigned long)(window_down));
         // if (p_index >= 3)
@@ -325,7 +302,7 @@ public:
             {
                 // printf("%lu %lu %lu %lu\n", (unsigned long)(last_w - PointerListLen + 1), (unsigned long)(w-last_w), (unsigned long)(last_r - PointerListLen + 1), (unsigned long)(r-last_r));
                 // score+=get_alignment(dna_f, last_w - PointerListLen + 1, w-last_w, read, last_r - PointerListLen + 1, r-last_r, w-last_w, r-last_r, w-last_w, r-last_r, ss);
-                score+=get_alignment(dna_f, last_w - PointerListLen + 1, w-last_w, read, last_r - PointerListLen + 1, r-last_r, w-last_w, r-last_r, w-last_w, r-last_r, ss);
+                score+=get_alignment(dna_f, last_w - PointerListLen + 1, w-last_w, read, last_r - PointerListLen + 1, r-last_r, w-last_w, 0, w-last_w, r-last_r, ss);
             }
             last_w = w;
             last_r = r;
@@ -359,8 +336,8 @@ public:
             {
                 if (w!=last_w && r!=last_r)
                 {
-                    printf("%lu %lu %lu %lu\n", (unsigned long)(last_w), (unsigned long)(w), (unsigned long)(last_r), (unsigned long)(r));
-                    printf("%lu %lu %lu %lu\n", (unsigned long)(last_w - PointerListLen + 1), (unsigned long)(w-last_w), (unsigned long)(last_r - PointerListLen + 1), (unsigned long)(r-last_r));
+                    // printf("%lu %lu %lu %lu\n", (unsigned long)(last_w), (unsigned long)(w), (unsigned long)(last_r), (unsigned long)(r));
+                    // printf("%lu %lu %lu %lu\n", (unsigned long)(last_w - PointerListLen + 1), (unsigned long)(w-last_w), (unsigned long)(last_r - PointerListLen + 1), (unsigned long)(r-last_r));
                     score+=get_alignment(dna_f, last_w - PointerListLen + 1, w-last_w, read, last_r - PointerListLen + 1, r-last_r, 0, 0, w-last_w, r-last_r, ss);
                 }
                 else if(w==last_w)
@@ -794,23 +771,70 @@ public:
     }
 
     
-    void create_matrix()
+    // void create_matrix()
+    // {
+    //     V = new double*[node_i];
+    //     for (size_t i=0; i<node_i; ++i) V[i] = new double[node_i];
+    //     uint32_t iw, ir, jw, jr;
+    // 	size_t il, jl;
+    //     double tw, tr, dis;
+    //     // for (size_t i=0; i<node_i; ++i)
+    //     // {
+    //     //     iw = wd[i].index_of_W;
+    //     //     ir = wd[i].index_of_R;
+    //     //     il = wd[i].len;
+    //     //     printf("%lu %lu %lu ", (unsigned long)iw, (unsigned long)ir, (unsigned long)il);
+    //     //     printf("\n");
+    //     // }
+
+
+    //     for (size_t i=0; i<node_i-1; ++i)
+    //     {
+    //         iw = wd[i].index_of_W;
+    //         ir = wd[i].index_of_R;
+    //         il = wd[i].len;
+    //         for (size_t j=i+1; j<node_i; ++j)
+    //         {
+    //             V[i][j]=0;
+    //             jw = wd[j].index_of_W;
+    //             jr = wd[j].index_of_R;
+    //             jl = wd[j].len;
+
+    //             // printf("%lu %lu %lu ", (unsigned long)jw, (unsigned long)(il + iw ), (unsigned long)iw);
+    //             // printf("%lu %lu %lu ", (unsigned long)jr, (unsigned long)(il + ir ), (unsigned long)ir);
+
+    //             // if (jw >= il + iw && jr >= il  + ir && jr <= ir + il + t_wait)
+    //             // {
+    //             //     V[i][j] = 1;
+    //             // }
+    //             if (i==0 || j==(node_i-1))
+    //             {
+    //                 V[i][j] = 1 + jl;
+    //             }
+    //             else if (jw >= il + iw && jr >= il  + ir)
+    //             {
+    //                 tw = abs(1.0 * jw - iw);
+    //                 tr = abs(1.0 * jr - ir);
+    //                 dis = abs(tw - tr);
+    //                 V[i][j] = 1 + jl + scg * (1 + dis);
+    //             }
+
+    //             // printf("(%lu %lu) %lu ", (unsigned long)i, (unsigned long)j, (unsigned long)V[i][j]);
+    //         }
+    //         // printf("\n");
+    //     }
+    // }
+
+    void find_path()
     {
-        V = new size_t*[node_i];
-        for (size_t i=0; i<node_i; ++i) V[i] = new size_t[node_i];
         uint32_t iw, ir, jw, jr;
-    	size_t il;
+        size_t il, jl;
+        int32_t tw, tr, dis, weight;
 
-        // for (size_t i=0; i<node_i; ++i)
-        // {
-        //     iw = wd[i].index_of_W;
-        //     ir = wd[i].index_of_R;
-        //     il = wd[i].len;
-        //     printf("%lu %lu %lu ", (unsigned long)iw, (unsigned long)ir, (unsigned long)il);
-        //     printf("\n");
-        // }
+        // memset(dp, 0, sizeof(dp));
+        for (size_t i=0; i<node_i; ++i) dp[i] = 0;
 
-
+        // printf("node len: %lu\n", (unsigned long)node_i);
         for (size_t i=0; i<node_i-1; ++i)
         {
             iw = wd[i].index_of_W;
@@ -819,18 +843,72 @@ public:
             for (size_t j=i+1; j<node_i; ++j)
             {
                 V[i][j]=0;
+
+                //for V[i][j] may == 0, so should have link to mark the point is linked
+                Link[i][j] = 0;
                 jw = wd[j].index_of_W;
                 jr = wd[j].index_of_R;
-                // printf("%lu %lu %lu ", (unsigned long)jw, (unsigned long)(il + iw ), (unsigned long)iw);
-                // printf("%lu %lu %lu ", (unsigned long)jr, (unsigned long)(il + ir ), (unsigned long)ir);
-
-                if (jw >= il + iw && jr >= il  + ir && jr <= ir + il + t_wait)
+                jl = wd[j].len;
+                if (i==0 || j==(node_i-1))
                 {
-                    V[i][j] = 1;
+                    // V[i][j] = 1 + jl;
+                    Link[i][j] = 1;
+                    weight = (int32_t)(scy * jl);
+                    V[i][j] = weight;
+                    dp[j] = ((dp[j] > weight+dp[i]) ? dp[j] : weight+dp[i]);
                 }
-                // printf("(%lu %lu) %lu ", (unsigned long)i, (unsigned long)j, (unsigned long)V[i][j]);
+                else if (jw >= il + iw && jr >= il  + ir)
+                {
+                    Link[i][j] = 1;
+                    tw = abs(1.0 * jw - iw);
+                    tr = abs(1.0 * jr - ir);
+                    dis = abs(tw - tr);
+                    weight = (int32_t)(1 + scy * jl + scg * (1 + dis)) + 1;
+                    V[i][j] = weight;
+                    dp[j] = (dp[j] > weight+dp[i] ? dp[j] : weight+dp[i]);
+                }
+                // printf("(%lu,%lu) %d ", (unsigned long)i, (unsigned long)j, weight);
             }
-            // printf("\n");
+            // printf("---\n");
         }
+        // printf("%d\n", dp[node_i-1]);
+
+        // for (size_t i=0; i<node_i-1; ++i)
+        // {
+        //     for (size_t j=i+1; j<node_i; ++j)
+        //     {
+        //           // printf("%lu %lu %lu | ", (unsigned long)wd[j].len, (unsigned long)dp[i], (unsigned long)dp[j]);
+        //         if (V[i][j]) dp[j] = (dp[j] > wd[j].len+dp[i] ? dp[j] : wd[j].len+dp[i]);
+        //           // printf("%lu %lu %lu | ", (unsigned long)i, (unsigned long)j, (unsigned long)dp[j]);
+        //     }
+        //     // printf("\n");
+        // }
+        size_t thenode = node_i - 1;
+        //path from 1 to p_index) is the index of path string
+        size_t p_tmp;
+        p_index = 0;
+        path = new size_t[node_i];
+        while (thenode != 0)
+        {
+            p_tmp = thenode;
+            for (size_t i = 0; i< p_tmp; ++i)
+            {
+                if (i==thenode || Link[i][thenode]==0) continue;
+                if (dp[thenode] == V[i][thenode] + dp[i])
+                {
+                    thenode = i;
+                    // PX(i);
+                    path[p_index++] = i;
+                    break;
+                }
+            }
+            if(thenode == p_tmp) break;
+        }
+
+
+        // for (size_t i=0; i<node_i; ++i) free(V[i]);
+        // free(V);
+        // free(dp);
     }
+
 };
