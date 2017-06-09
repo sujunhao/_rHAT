@@ -110,25 +110,38 @@ class RHT
             w_len = k << 1;
             pw_len = w_len;
 
-            P = new uint32_t[p_len];
-            W = new uint32_t[w_len];
-            PW = new uint64_t[pw_len];
+            // P = new uint32_t[p_len];
+            // W = new uint32_t[w_len];
+            // PW = new uint64_t[pw_len];
+
+            P = (uint32_t *)malloc(p_len * sizeof(uint32_t));
+            W = (uint32_t *)malloc(w_len * sizeof(uint32_t));
+            PW = (uint64_t *)malloc(pw_len * sizeof(uint64_t));
 
             index = 0;
             w_index = 0;
         }
         ~RHT()
         {
-            delete [] P;
-            delete [] W;
-            delete [] PW;
+            // delete [] P;
+            // delete [] W;
+            // delete [] PW;
+            if (P) free(P);
+            if (W) free(W);
+            if (PW) free(PW);
         }
 
         void clear()
         {
-            for(size_t i=0; i<index; ++i)   PW[i] = 0;
             // memset(PW, sizeof(PW), 0);
-            // memset(P, sizeof(P), 0);
+            memset(P, sizeof(P), 0);
+            index = 0;
+        }
+
+        void clear_PW()
+        {
+            for (size_t i = 0; i<index; ++i) PW[i] = 0;
+            // memset(PW, sizeof(PW), 0);
             index = 0;
         }
 
@@ -178,7 +191,8 @@ class RHT
         void create_p_w()
         {
             std::sort(PW, PW+index);
-            memset(P, 0, sizeof(P));
+
+            // memset(P, 0, sizeof(P));
             uint32_t p_tmp, last;
             w_index=0;
             p_tmp = PW[0] >> 32;
@@ -208,18 +222,35 @@ class RHT
         void write_hash(FILE *out)
         {
             // fprintf(out, "%lu|", (unsigned long)w_index);
+            //write size info
+            fwrite(&PointerListLen, sizeof(size_t), 1, out);
+            fwrite(&WindowListLen, sizeof(size_t), 1, out);
             fwrite(P, sizeof(uint32_t), p_len, out);
+
+
             fwrite(&w_index, sizeof(uint32_t), 1, out);
             // std::cout << w_index << std::endl;
             fwrite(W, sizeof(uint32_t), w_index, out);
         }
 
-        void read_hash(FILE *in)
+        int read_hash(FILE *in)
         {
-            fread(P, sizeof(uint32_t), p_len, in);
-            fread(&w_index, sizeof(uint32_t), 1, in);
+            //read size info
+            size_t tmp_p, tmp_w, tmp;
+            tmp = fread(&tmp_p, sizeof(size_t), 1, in);
+            tmp = fread(&tmp_w, sizeof(size_t), 1, in);
+            printf("In hase table: PointerListLen: %lu\t WindowListLen: %lu\n",  (unsigned long)tmp_p, (unsigned long)tmp_w);
+            if (tmp_p!= PointerListLen || tmp_w != WindowListLen)
+            {
+                fprintf(stderr, "window size error, the hash table have p:%lu and w:%lu\n while the input have:\
+                    p:%lu w:%lu\n", (unsigned long)tmp_p, (unsigned long)tmp_w, (unsigned long)PointerListLen, (unsigned long)WindowListLen);
+                return 1;
+            }
+
+            tmp = fread(P, sizeof(uint32_t), p_len, in);
+            tmp = fread(&w_index, sizeof(uint32_t), 1, in);
             // std::cout << w_index << std::endl;
-            fread(W, sizeof(uint32_t), w_index, in);
+            tmp = fread(W, sizeof(uint32_t), w_index, in);
         }
 
         

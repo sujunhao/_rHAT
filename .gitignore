@@ -16,3 +16,6 @@ test*
 prety_read.fa
 log
 *.out_RHT
+*.hash_ref
+*.log
+log_ref

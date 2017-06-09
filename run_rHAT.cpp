@@ -8,24 +8,29 @@
 #include <unistd.h>
 #include <stdint.h>
 #include <zlib.h>
+#include <math.h>
 #include <time.h>
 #include <string.h>
 #include <stdlib.h>
 #include "kseq.h"
 #include "DAG.h"
+// #include "LV_deep.h"
+#include "SNP_vector.h"
+#include "Haffman.h"
 using namespace std;
 
-KSEQ_INIT(gzFile, gzread)
+// KSEQ_INIT(gzFile, gzread)
 
 
 // #define PRINTLOG
-#define READINFO
+// #define READINFO
 
-void to_upper(char *s)
+
+void char2char(char *s)
 {
   size_t l = strlen(s);
   for (size_t i=0; i<l; ++i)
-    s[i] = toupper(s[i]);
+    s[i] = map_c[(s[i] =='N') ? rand()%4 : map_bit[s[i]]];
 }
 
 
@@ -51,21 +56,36 @@ void print_usage()
     printf("\tuse out_RHT to run rHAT\n");
     printf("\trun_rHAT [option]\n");
     printf("\t-f \tdna file           [FILE]\n");
+    printf("\t-v \tVCF file           [FILE]\n");
     printf("\t-r \tread file          [FILE]\n");
     printf("\t-o \toutput file        [out]\n");
     printf("\t-w \tset WindowListLen  [%lu]\n", (unsigned long)WindowListLen);
-    printf("\t-p \tset PointerListLen [%lu]\n", (unsigned long)PointerListLen);
+    printf("\t-p \tset PointerListLen [6-16][%lu]\n", (unsigned long)PointerListLen);
     printf("\t-h \thelp\n");
 }
 
+
+extern double **dp;
+extern int *v;
+extern size_t max_dp_ref_len, max_dp_read_len;
+// int max_error = 50, max_pattern=5000;
+extern LV_ENTITY *lv;
+
+
+
+
 int main(int argc, char** argv) 
 { 
+    char d_n[500]="";
+    char r_n[500]="";
+    char v_n[500]="";
+    char r_f[500]="";
+    char r_h[500]="";
+    char o_n[500]="out.sam";
+    
     int c;
     opterr = 0;
-    char d_n[100]="";
-    char r_n[100]="";
-    char o_n[100]="out";
-    while ((c = getopt (argc, argv, "p:w:f:r:o:h")) != -1) 
+    while ((c = getopt (argc, argv, "v:p:w:f:r:o:h")) != -1) 
     {
         switch (c)
         {
@@ -76,6 +96,10 @@ int main(int argc, char** argv)
             case 'w':
                 if (optarg)
                     WindowListLen = atol(optarg);
+                break;
+            case 'v':
+                if (optarg)
+                    strcpy(v_n, optarg);
                 break;
             case 'f':
                 if (optarg)
@@ -104,6 +128,11 @@ int main(int argc, char** argv)
         return 1;
     }
 
+    if (PointerListLen<6 || PointerListLen > 16)
+    {
+        std::cout << "PointerListLen out of range[6-16]: " << PointerListLen << endl;
+        return 1;
+    }
     std::cout << "PointerListLen: " << PointerListLen << " " 
               << "| WindowListLen: " << WindowListLen << " "
               << "| dna file: " << string(d_n) << " " 
@@ -111,34 +140,92 @@ int main(int argc, char** argv)
 
 
     //read ref
-    char *ref_s = (char *)malloc(10 * sizeof(char));;
-    size_t ref_len = 0;
-    int l = 0;
-    gzFile fp1 = gzopen(d_n, "r");
-    if (fp1)
+
+    FILE *out;
+    out = fopen(o_n, "wb");
+
+    int sam = 1;
+    if (sam)    fprintf(out, "@HD\tVN:0.1.1\n");
+
+
+    ref_s rs_entity;
+    ref_s *rs = &rs_entity;
+
+    //init ref space
+    size_t rl=1, nl=1;
+    int l;
+    gzFile fp;
+    kseq_t *seq;
+    strcpy(r_f, d_n);
+    strcat(r_f, ".hash_ref");
+    fp = gzopen(r_f, "r");
+    seq = kseq_init(fp);
+    while ((l = kseq_read(seq)) >= 0) {
+        if (sam) fprintf(out, "@SQ\tSN:%s\tLN:%d\n", seq->name.s, (int32_t)seq->seq.l);
+        printf("%2lu %13s len: %lu i:%lu\n", nl, seq->name.s, seq->seq.l, rl);
+        // if (seq->comment.l) printf("comment: %s\n", seq->comment.s);
+        // printf("seq: %s\n", seq->seq.s);
+        // if (seq->qual.l) printf("qual: %s\n", seq->qual.s);
+        rl += seq->seq.l;
+        ++nl;
+    }
+    printf("total Len:%lu\n", rl);
+    rs->ref_s_l=0;
+    rs->ref_s = (uint64_t *)malloc(sizeof(uint64_t) * (rl/32+1));
+    rs->uref_l=0;
+    rs->uref = (ref_type *)malloc(sizeof(ref_type) * nl);
+    char *ref_s = (char *)malloc((rl+1) * sizeof(char));
+    
+    // ref_buffer += (sizeof(uint64_t) * (rl/32+1) + sizeof(ref_type) * nl);
+    kseq_destroy(seq); // STEP 5: destroy seq
+    gzclose(fp);
+
+    // //read ref
+    // // read_ref(&rs, d_n);
+    uint64_t unit_number = 0;
+    fp = gzopen(r_f, "r");
+    seq = kseq_init(fp);
+    while ((l = kseq_read(seq)) >= 0) {
+        //set ference value
+        ref_type urt;
+        char *seq_n = (char *)malloc(sizeof(char) * (seq->name.l + 1));
+        strcpy(seq_n, seq->name.s);
+        char *seq_c = (char *)malloc(sizeof(char) * (seq->comment.l + 1));
+        strcpy(seq_c, seq->comment.s);
+        urt.n = seq_n;
+        urt.c = seq_c;
+        urt.l = seq->seq.l;
+        urt.i = rs->ref_s_l;
+
+        // char2char(seq->seq.s);
+        strncpy(ref_s+rs->ref_s_l, seq->seq.s, seq->seq.l);
+
+        ref_set2int(seq->seq.s, seq->seq.l, rs->ref_s, &(rs->ref_s_l));
+
+        rs->uref[rs->uref_l++] = urt;
+    }
+    ref_s[rs->ref_s_l] = '\0';
+    // printf("return value: %d\n", l);
+    kseq_destroy(seq); // STEP 5: destroy seq
+    gzclose(fp);
+
+    char log_ref_file[] = "log_ref";
+    print_ref_in_char(rs, log_ref_file);
+
+    
+    size_t ref_len = rs->ref_s_l;
+
+    if (sam)
     {
-        kseq_t *seq1 = kseq_init(fp1);
-        while ((l = kseq_read(seq1)) >= 0) {
-            ref_s = (char *)realloc(ref_s, (ref_len + (seq1->seq.l+1)) * sizeof(char*));
-            // // ref_num = (int8_t *)malloc(sizeof(int8_t) * seq1->seq.l);
-            to_upper(seq1->seq.s);
-            strncpy(ref_s + ref_len, seq1->seq.s, seq1->seq.l);
-            // // ref = seq1->seq.s;
-            ref_len += (seq1->seq.l);
-            ref_s[ref_len] = '\0';
-            // ref_num = char_create_num(ref, seq1->seq.l, nt_table);
-            // for (m = 0; m < ref_len; ++m) ref_num[m] = nt_table[(int)ref[m]];
+        fprintf(out, "@PG\tID:run_rHAT\tVN:0.1\tCL:");
+        for (size_t i=0; i<argc; ++i)
+        {
+            fprintf(out, i==(argc-1) ? "%s\n":"%s ", argv[i]);
         }
-        // printf("%s\n", res_s);
-        kseq_destroy(seq1);
     }
-    else
-    {
-        fprintf(stderr, "read ref file %s error\n", d_n);
-    }
-    gzclose(fp1);
 
     printf("load ref succeed, total len: %lu\n", (unsigned long)ref_len);
+
     // for (size_t i = 0; i<200; ++i)
     // {
     //     printf("%c", ref_s[i]);
@@ -149,18 +236,38 @@ int main(int argc, char** argv)
     //     printf("%c", ref_s[i]);
     // }
     // printf("\n");
+    // return 1;
 
+
+    //read VCF
+    var_s vs_entity;
+    var_s *vs = &vs_entity;
+
+    int have_vcf = 0;
+
+    if (v_n[0] != '\0') have_vcf = 1;
+    if (have_vcf)
+    {
+        create_HAFF();
+
+        printf("read VCF file from:%s\n", v_n);
+        init_var(rs, vs, v_n);
+        read_var(rs, vs, v_n);
+        
+        char log_vcf[50]="vcf.log";
+        log_vcf_v(vs, rs, log_vcf);
+    }
 
     // ifstream inRef, inRead;
-    FILE *out;
+    
     FILE *inRHT;
     // inRef.open(d_n);
     // inRead.open(r_n);
-    out = fopen(o_n, "wb");
 
-    strcat(d_n, ".out_RHT");
+    strcpy(r_h, d_n);
+    strcat(r_h, ".out_RHT");
     printf("read hash from %s\n", d_n);
-    inRHT = fopen(d_n, "rb");
+    inRHT = fopen(r_h, "rb");
 
     //-----------------------------------get dna_ref string
     // string dna_name, dna_s, dna_f;
@@ -170,7 +277,7 @@ int main(int argc, char** argv)
     //-----------------------------------get hash table
     // RHT rht(dna_f.size());
     RHT rht(ref_len);
-    rht.read_hash(inRHT);
+    if (rht.read_hash(inRHT)) return 1;
     cout << "succeed load RHT\n";
     printf("Time used = %.2f\n",  (double)clock() / CLOCKS_PER_SEC);
     
@@ -180,28 +287,68 @@ int main(int argc, char** argv)
 
     //-----------------------------------get read
     // string read_m, read, read_x;
-    //init mask
+    //init mask mask = 0xffffffff
     MASK = MASK >> (32 - PointerListLen * 2);
+
     // //the hit window number that will go to alignment of each read
-    const uint32_t full = 3;
-    uint32_t hit_w[full];
-    uint32_t hit_times[full];
+    uint32_t full = 3;
+    uint32_t *hit_w = (uint32_t *)malloc(full*sizeof(uint32_t));
+    uint32_t *hit_times = (uint32_t *)malloc(full*sizeof(uint32_t));
     uint32_t tmp = 0, tar;
 
     // const char *c_dna_f = dna_f.c_str();
     const char *c_dna_f = ref_s;
 
-    const size_t max_read = 500, max_window = 4096, min_window = 512, max_ref=1UL<<25;
-    //#2
-    size_t WC[max_ref / min_window];
-    memset(WC, 0, sizeof(WC));
-    size_t tmp_wc, max_wc=0;
-    //#
-    RHT rrht(max_read);
-    bool vis[max_read + max_window];
-    // size_t vis_m[30000];
 
-    DAG dag(WindowListLen + 3);
+    //init max_read length
+    size_t max_read = 100;
+    fp = gzopen(r_n, "r");
+    seq = kseq_init(fp);
+    while ((l = kseq_read(seq)) >= 0) {
+        // if (seq->seq.l > max_read) printf("%s\n", seq->name.s);
+        max_read = MX(max_read, seq->seq.l);
+
+    }
+    // max_read += 10;
+    printf("max read length: %lu\n", (unsigned long)max_read);
+    kseq_destroy(seq); // STEP 5: destroy seq
+    gzclose(fp);
+
+    max_dp_ref_len = WindowListLen + max_read + 5;
+    max_dp_read_len = max_read + 5;
+
+    size_t max_window_index = 1 + (ref_len) / WindowListLen * 2 ;
+    //#2
+
+    //init dp space
+    dp = (double **)malloc(sizeof(double *) * max_dp_ref_len);
+    for(size_t i=0; i<max_dp_ref_len; ++i)
+    {
+        dp[i] = (double *)malloc(sizeof(double) * (max_dp_read_len));
+    }
+    v = (int *)malloc(sizeof(int) * 2 * (MX(max_dp_read_len, max_dp_ref_len)));
+
+    int max_error = 50, max_node = 500, max_deep = 500;
+    if (have_vcf)
+    {
+        //len node error read deep
+        lv = (LV_ENTITY *)malloc(sizeof(LV_ENTITY));
+        init_lv_space(lv, max_node, max_error, max_dp_read_len, max_deep);
+    }
+
+    int windown_hit_too_low=20, hit_too_many=WindowListLen / 2;
+
+    //ref window count array
+    int *WC = (int *)calloc(max_window_index, sizeof(int));
+
+    size_t tmp_wc, max_wc=0;
+
+    //read hash table
+    RHT rrht(max_read);
+    bool vis[max_read*2 + WindowListLen];
+
+    DAG dag(max_read + WindowListLen + 3);
+
     Cigar cg, thecg;
     cg.length = 0;
     cg.seq =  (uint32_t *)malloc(max_read * sizeof(uint32_t));
@@ -211,25 +358,36 @@ int main(int argc, char** argv)
     char *read_s;
     size_t read_len = 0;
     gzFile fp2 = gzopen(r_n, "r");
-    if (fp2)
+            
+    char *seq_c = (char *)malloc(sizeof(char) * (max_read * 2 + 100));
+
+    char *c_read_4bit;
+    if (have_vcf)
+    {
+        c_read_4bit = (char *)malloc(sizeof(char) * (max_read * 2 + 100));
+    }
+    // PX("asd");
+    // cout << max_read + WindowListLen + 3 << endl;
+    // return 1;
+    int best_if_reverse = 0, find_a = 0;
+    size_t best_pos = 0;
+    if (!fp2) fprintf(stderr, "read file %s error\n", r_n);
+    else
     {
         kseq_t *seq2 = kseq_init(fp2);
         while ((l = kseq_read(seq2)) >= 0) 
         {
+
+            outt << seq2->name.s << " ";
+
+
+            //print read info from simulated read data
             #ifdef READINFO
-            int max_pattern=max_read;
-            char *seq_n = (char *)malloc(sizeof(char) * (100 + 1));
-            char *new_p = (char *)malloc(sizeof(char) * (max_pattern + 1));
-            strcpy(seq_n, seq2->name.s);
-            char *seq_c = (char *)malloc(sizeof(char) * (max_pattern * 2 + 100));
             strcpy(seq_c, seq2->comment.s);
             char *p = strtok(seq_c, " =");
             char *p1, *p2;
             char *config, *chrom, *hap_ref, *edit_s;
             size_t begin, end;
-
-            size_t extend_time = 0;
-
             while (p != NULL)
             {
                 p1 = p;
@@ -259,26 +417,27 @@ int main(int argc, char** argv)
                 }
             }
             // outt << seq_n << " " << chrom << " " << begin << " " << end << " " << edit_s << " ";
-            outt << seq_n << " " << begin << " " << edit_s << " ";
-
+            outt << begin << " " << edit_s << " ";
             #endif
-            to_upper(seq2->seq.s);
+
+
+            size_t extend_time = 0;
+            char2char(seq2->seq.s);
             // // ref = seq1->seq.s;
             read_len = (seq2->seq.l);
             // const char *c_read = read.c_str();
+
             char *c_read = seq2->seq.s;
+            char *re_read;
             bool reverse = false;
             // size_t read_len = read.size();
             
             
-            double score = -INF, score_enough=read_len*scy*0.95;
+            double score = -INF, score2, score_enough=read_len*scy*0.95;
             double score_too_low=(-0.8)*read_len*scy;
-            size_t windown_hit_too_low=20, hit_too_many=1000;
-            string thess(read_len+WindowListLen, 0);
-            thess.clear();
-
             
-
+            best_if_reverse = 0;
+            find_a = 0;
 
             while (true)
             {
@@ -288,32 +447,43 @@ int main(int argc, char** argv)
                 //reverse read
                 if (reverse)
                 {
+                    re_read =  (char *)malloc((read_len+1) * sizeof(char));
+                    strcpy(re_read, seq2->seq.s);
+
                     for (size_t i = 0; i<read_len/2; ++i)
                     {   
-                        char tmp = c_read[i];
-                        c_read[i] = c_read[read_len - 1 - i];
-                        c_read[read_len - 1 - i] = tmp;
+                        char tmp = re_read[i];
+                        re_read[i] = re_read[read_len - 1 - i];
+                        re_read[read_len - 1 - i] = tmp;
                     }
 
                     for (size_t i = 0; i<read_len; ++i)
                     {
-                        switch(c_read[i])
+                        switch(re_read[i])
                         {
                             case 'A':
-                                c_read[i] = 'T';
+                                re_read[i] = 'T';
                                 break;
                             case 'T':
-                                c_read[i] = 'A';
+                                re_read[i] = 'A';
                                 break;
                             case 'G':
-                                c_read[i] = 'C';
+                                re_read[i] = 'C';
                                 break;
                             case 'C':
-                                c_read[i] = 'G';
+                                re_read[i] = 'G';
                                 break;    
                         }
                     }
+                    c_read = re_read;
                 }
+
+                if (have_vcf)
+                {
+                    parse_pattern_string_4bit(c_read, read_len, c_read_4bit);
+                }
+
+
                 #ifdef PRINTLOG
                     // printf("%s %d %s\n", seq2->name.s, reverse, c_read);
                     if (reverse) outt << "reversed ";
@@ -403,6 +573,7 @@ int main(int argc, char** argv)
                         // outt << Hwin_cnt.top().cnt << " " << Hwin_cnt.top().index_of_W << endl;
                         outt << Hwin_cnt.top().cnt << " " << Hwin_cnt.top().index_of_W << " " << Hwin_cnt.top().index_of_W * (WindowListLen / 2) << endl;
                     #endif
+
                     hit_w[--z] = Hwin_cnt.top().index_of_W;
                     hit_times[z] = Hwin_cnt.top().cnt;
                     if (z==0) 
@@ -417,7 +588,7 @@ int main(int argc, char** argv)
                     #ifdef PRINTLOG
                         //print the hit window and their hit times
                         // outt << Hwin_cnt.top().cnt << " " << Hwin_cnt.top().index_of_W << endl;
-                        outt << mx << " window hit too low\n";
+                        outt << mx << " window hit too low reverse read or end read alignment\n";
                     #endif
                     if (reverse) break;
                     reverse = true;
@@ -428,7 +599,7 @@ int main(int argc, char** argv)
 
                 //-----------------------------------step 2 create read hash table
                 tmp = 0;
-                rrht.clear();
+                rrht.clear_PW();
                 for (size_t i=0; i < read_len; ++i)
                 {
                     tmp = (tmp << 2) | get_c[c_read[i]];
@@ -440,6 +611,8 @@ int main(int argc, char** argv)
                     }
                 }
                 rrht.sort_pw();
+                // rrht.create_p_w();
+
                 #ifdef PRINTLOG
                     outt << "created read hash table\n";
                 #endif
@@ -453,14 +626,16 @@ int main(int argc, char** argv)
                     // outt  << last_z << " " << hit_w[z] << endl;
                     
                     if (abs(1.0*last_z-hit_w[z]) <= 1) break;
-                    
                     last_z = hit_w[z];
+                    
                     ++extend_time;
+
                     size_t window_up, window_down;
                     size_t ref_block_len = WindowListLen / 4;
                     //just target ref block to width at least WindowListLen + ref_block_len
                     window_up = ( hit_w[z] * (WindowListLen / 2) >= ((ref_block_len / 2) + len_up_stream) ) ? ( hit_w[z] * (WindowListLen / 2) - ((ref_block_len / 2) + len_up_stream) ) : (0);
                     window_down = ( hit_w[z] * (WindowListLen / 2) + WindowListLen + ((ref_block_len / 2) + len_down_stream) <= ref_len ) ? ( hit_w[z] * (WindowListLen / 2) + WindowListLen + ((ref_block_len / 2) + len_down_stream) ) : (ref_len);
+                    
                     #ifdef PRINTLOG
                         outt << "check block: " << hit_w[z] << " ";
                         // outt  << last_z << endl;
@@ -486,12 +661,16 @@ int main(int argc, char** argv)
                         // outt << endl; 
                     #endif
 
-                    tmp = 0;
                     // memset(vis, 0, sizeof(vis));
                     // memset(vis_m, 0, sizeof(vis_m));
+
+                    size_t pw, n, ttmp;
+                    uint32_t pr;
+                    uint32_t d = 0;
+                    
                     priority_queue<WQ> Q;
                     WQ qt;
-                    size_t s_ref_len = window_down - window_up;
+                    tmp = 0;
                     for (size_t i=window_up; i < window_down; ++i)
                     {
                         tmp = (tmp << 2) | get_c[c_dna_f[i]];
@@ -501,61 +680,97 @@ int main(int argc, char** argv)
                         if (i - window_up >= PointerListLen - 1)
                         {
                             //if find window & read match l-mer
-                            uint32_t d = 0;
+                            // d = 0;
                             d = rrht.search(tar);
                             // continue;
-                            size_t pw, n, ttmp;
-                            uint32_t pr;
                             // printf("%lu\n", (unsigned long)d);
                             // outt << "|";
 
-                            if (d)
+                            while (d && (rrht.PW[d-1] >> 32) == tar)
                             {   
-                                while ((rrht.PW[d-1] >> 32) == tar)
+                                // outt << "-";
+                                // outt << ">" << (uint32_t)rrht.PW[d-1] << " " << to_string((rrht.PW[d-1] >> 32)) << endl;
+                                // outt << (i - window_up + read_len - (uint32_t)rrht.PW[d-1]) << endl;
+
+                                pw = i;
+                                pr = rrht.PW[d-1];
+
+                                if (!vis[(i - window_up + read_len - pr)])
                                 {
-                                    // outt << "-";
-                                    // outt << ">" << (uint32_t)rrht.PW[d-1] << " " << to_string((rrht.PW[d-1] >> 32)) << endl;
-                                    // outt << (i - window_up + read_len - (uint32_t)rrht.PW[d-1]) << endl;
+                                // outt << ">" << (uint32_t)rrht.PW[d-1] << " " << to_string((rrht.PW[d-1] >> 32)) << endl;
+                                    // outt << "asd" << endl;
+                                    n = dag.add_node(pw, pr, PointerListLen);
 
-                                    if (!vis[(i - window_up + read_len - (uint32_t)rrht.PW[d-1])])
+                                    ttmp = (i - window_up + read_len - pr);
+
+                                    //if overlap
+                                    vis[ttmp]=true;
+                                    // outt << "B: " << pr << " "<<(i - window_up + read_len - pr) << " ";
+                                    ++pw;
+                                    ++pr;
+                                    while(c_dna_f[pw]==c_read[pr] && dag.check_node(pw, pr, n))
                                     {
-                                    // outt << ">" << (uint32_t)rrht.PW[d-1] << " " << to_string((rrht.PW[d-1] >> 32)) << endl;
-                                        // outt << "asd" << endl;
-                                        pw = i;
-                                        pr = rrht.PW[d-1];
-                                        n = dag.add_node(pw, pr, PointerListLen);
-
-                                        ttmp = (i - window_up + read_len - pr);
-
-                                        //if overlap
-                                        vis[ttmp]=true;
-                                        // outt << "B: " << pr << " "<<(i - window_up + read_len - pr) << " ";
+                                        // vis[(pw - window_up + read_len - pr)]=true;
                                         ++pw;
                                         ++pr;
-                                        while(c_dna_f[pw]==c_read[pr] && dag.check_node(pw, pr, n))
-                                        {
-                                            // vis[(pw - window_up + read_len - pr)]=true;
-                                            ++pw;
-                                            ++pr;
-                                            // outt << (unsigned long)pw - window_up << "/" << pr << " ";
-                                        }
-                                        // for (size_t t = 1; t<PointerListLen-1; ++t) vis[pr + t] = true;
-                                        qt.t = ttmp;
-                                        qt._i = pw - 1;
-                                        // vis_m[pw-window_up] = 1 + ttmp;
-                                        Q.push(qt);
-                                        // outt << wd[node_i].index_of_W << " " << wd[node_i].index_of_R << " " << wd[node_i].len << " ";
-                                        #ifdef PRINTLOG
-                                        // outt << "+ " << pr << " "<< qt._i - window_up << " ";
-                                        // cout_string_in_char(c_read, (dag.wd)[(dag.node_i-1)].index_of_R - PointerListLen + 1, (dag.wd)[(dag.node_i-1)].len, outt);
-                                        // outt << endl; 
-                                        #endif
+                                        // outt << (unsigned long)pw - window_up << "/" << pr << " ";
                                     }
-                                    ++d;
+                                    // for (size_t t = 1; t<PointerListLen-1; ++t) vis[pr + t] = true;
+                                    qt.t = ttmp;
+                                    qt._i = pw - 1;
+                                    // vis_m[pw-window_up] = 1 + ttmp;
+                                    Q.push(qt);
+                                    // outt << wd[node_i].index_of_W << " " << wd[node_i].index_of_R << " " << wd[node_i].len << " ";
+                                    #ifdef PRINTLOG
+                                    // outt << "+ " << pr << " "<< qt._i - window_up << " ";
+                                    // cout_string_in_char(c_read, (dag.wd)[(dag.node_i-1)].index_of_R - PointerListLen + 1, (dag.wd)[(dag.node_i-1)].len, outt);
+                                    // outt << endl; 
+                                    #endif
                                 }
+                                ++d;
                             }
 
-                            
+
+                            // d = rrht.P[tar];
+                            // while (d && rrht.P[tar+1]>d)
+                            // {
+                            //     pr = rrht.W[d-1];
+                            //     pw = i;
+                            //     if (!vis[(i - window_up + read_len - pr)])
+                            //     {
+                            //     // outt << ">" << (uint32_t)rrht.PW[d-1] << " " << to_string((rrht.PW[d-1] >> 32)) << endl;
+                            //         // outt << "asd" << endl;
+                            //         n = dag.add_node(pw, pr, PointerListLen);
+
+                            //         ttmp = (i - window_up + read_len - pr);
+
+                            //         //if overlap
+                            //         vis[ttmp]=true;
+                            //         // outt << "B: " << pr << " "<<(i - window_up + read_len - pr) << " ";
+                            //         ++pw;
+                            //         ++pr;
+                            //         while(c_dna_f[pw]==c_read[pr] && dag.check_node(pw, pr, n))
+                            //         {
+                            //             // vis[(pw - window_up + read_len - pr)]=true;
+                            //             ++pw;
+                            //             ++pr;
+                            //             // outt << (unsigned long)pw - window_up << "/" << pr << " ";
+                            //         }
+                            //         // for (size_t t = 1; t<PointerListLen-1; ++t) vis[pr + t] = true;
+                            //         qt.t = ttmp;
+                            //         qt._i = pw - 1;
+                            //         // vis_m[pw-window_up] = 1 + ttmp;
+                            //         Q.push(qt);
+                            //         // outt << wd[node_i].index_of_W << " " << wd[node_i].index_of_R << " " << wd[node_i].len << " ";
+                            //         #ifdef PRINTLOG
+                            //         // outt << "+ " << pr << " "<< qt._i - window_up << " ";
+                            //         // cout_string_in_char(c_read, (dag.wd)[(dag.node_i-1)].index_of_R - PointerListLen + 1, (dag.wd)[(dag.node_i-1)].len, outt);
+                            //         // outt << endl; 
+                            //         #endif
+                            //     }
+                            //     ++d;
+                            // }
+                            //free match pair block
                             while (!Q.empty() && Q.top()._i == i)
                             {
                                 // outt << "F " << c_dna_f[i] << " " << i - window_up << "> \n" ;
@@ -565,38 +780,6 @@ int main(int argc, char** argv)
                                 vis[qt.t] = false;
                             }
 
-                            // if (vis_m[i-window_up+1])
-                            // {
-                            //     vis[vis_m[i-window_up+1] - 1] = 0;
-                            //     // outt << "F " << vis_m[i-window_up+1] - 1 << " " << i - window_up << "> \n" ;
-                            //     // memset(vis, 0, sizeof(vis));
-                            //     qt = Q.front();
-                            //     Q.pop();
-                            //     d = qt.d;
-                            //     while ((rrht.PW[d-1] >> 32) == qt.tar)
-                            //     {
-
-                            //         pw = qt.i;
-                            //         pr = rrht.PW[d-1];
-                            //         //if overlap
-                            //         vis[pr]=false;
-                            //         ++pw;
-                            //         ++pr;
-                            //         while(vis[pr] && c_dna_f[pw]==c_read[pr] && dag.check_node(pw, pr, qt.n, 1))
-                            //         {
-                            //             vis[pr]=false;
-                            //             ++pw;
-                            //             ++pr;
-                            //         }
-                            //         // for (size_t t = 1; t<PointerListLen-2; ++t) vis[pr + t] = false;
-                            //         ++d;
-                            //         // outt << wd[node_i].index_of_W << " " << wd[node_i].index_of_R << " " << wd[node_i].len << " " << read.substr(wd[node_i].index_of_R, wd[node_i].len) << endl; 
-                            //         // outt << "> ";
-                            //         // cout_string_in_char(c_read, (dag.wd)[(dag.node_i-1)].index_of_R - PointerListLen + 1, (dag.wd)[(dag.node_i-1)].len, outt);
-                            //         // outt << endl; 
-                            //     // }
-
-                            // }
                         }
                     }
                     dag.add_node(window_down + PointerListLen - 1, read_len + PointerListLen - 1, 0);
@@ -604,15 +787,18 @@ int main(int argc, char** argv)
                          outt << "add  node end\n";
                     #endif
 
+                    double t = -INF;
                     // dag.print_log(outt);
 
-                    //linking nodes edge
-                    //node matrix 
+                    // linking nodes edge
+                    // node matrix 
                     // dag.create_matrix();
                     //do use node matrix to run dp
                      #ifdef PRINTLOG
                          outt << "print the node path:\noffset   node_index\n";
                     #endif
+
+                         
                     dag.find_path();
 
                     // -----------------------------------use global & semiglobal alignment to struct alignment and get sroce
@@ -621,17 +807,10 @@ int main(int argc, char** argv)
                         dag.print_log(const_cast<char*>(c_dna_f), const_cast<char*>(c_read), outt);
                     #endif
 
-                    double t;
-                    // string ss;
-                    // // dag.do_alignment(dna_f, read, outt);
-                    // t = dag.do_alignment(dna_f, window_up, window_down, read, ss, outt);
-
-                    // strcpy(sss, "");
-                    // t = dag.do_alignment(const_cast<char*>(c_dna_f), window_up, window_down, const_cast<char*>(c_read), read_len, sss, out);
                     
                     cg.length = 0;
-                    t = dag.do_alignment(const_cast<char*>(c_dna_f), window_up, window_down, const_cast<char*>(c_read), read_len, &cg, out);
-                    // t = dag.do_alignment(const_cast<char*>(c_dna_f), window_up, window_down, const_cast<char*>(c_read), read_len, ss, out);
+                    size_t pp = 0;
+                    t = dag.do_alignment(const_cast<char*>(c_dna_f), window_up, window_down, const_cast<char*>(c_read), read_len, &cg, &pp, out);
 
                     #ifdef PRINTLOG
                         outt << "cigar: ";
@@ -650,25 +829,16 @@ int main(int argc, char** argv)
                     #endif
 
 
-                    if ((t) > score)
+                    if (t > score)
                     {
+                        score2 = score;
+
+                        find_a = 1;
+                        best_pos = pp;
+                        if (reverse == 1)   best_if_reverse = 1;
                         score = t;
 
-                        // strcpy(thesss, sss);
-                        // thecg.length = cg.length;
-                        // // memset(thecg.seq, 0, sizeof(thecg.seq));
-                        // memcpy(thecg.seq, cg.seq, sizeof(cg.seq));
                         copy_cigar(&thecg, &cg);
-                        
-                        // thess = ss;
-                    }
-                    else if (z > 0 && hit_times[z] > hit_times[z-1])
-                    {
-                        #ifdef PRINTLOG
-                            outt << hit_times[z] << " " << hit_times[z-1] << "\n";
-                            outt << "break for score no increse\n";
-                        #endif
-                        break;
                     }
 
                     if (score < score_too_low)
@@ -678,7 +848,16 @@ int main(int argc, char** argv)
                         #endif
                         break;
                     }
-                    // dag.do_alignment(c_dna_f, window_up, window_down - PointerListLen + 1, c_read, out);
+                    else if (z > 0 && hit_times[z] > hit_times[z-1])
+                    {
+                        #ifdef PRINTLOG
+                            outt << hit_times[z] << " " << hit_times[z-1] << "\n";
+                            outt << "break for score no increse\n";
+                        #endif
+                        break;
+                    }
+                    
+                    
 
                     if (t <= score_too_low) 
                     {
@@ -699,7 +878,7 @@ int main(int argc, char** argv)
                 if (score >= score_enough)
                 {
                     #ifdef PRINTLOG
-                        outt << "no reverse for score_enough\n";
+                        outt << "no reverse need for score_enough\n";
                     #endif
                     break;
                 }
@@ -710,6 +889,7 @@ int main(int argc, char** argv)
             }
 
 
+            //print read alignment result
             outt << extend_time << " ";
             for (size_t i = 0; i<(thecg.length); ++i)
             {
@@ -730,14 +910,91 @@ int main(int argc, char** argv)
 
             #endif
 
+            if (sam)
+            {
+                //read name
+                fprintf(out, "%s\t", seq2->name.s);
+                //flag
+                int sam_flag = 0;
+                if (!find_a)
+                {
+                    fprintf(out, "4\t*\t0\t255\t*\t*\t0\t0\t*\t*\n");
+                    continue;
+                }
+                if (best_if_reverse)    sam_flag += 16;
+                fprintf(out, "%d\t", sam_flag);
+                //ref name
+                for (size_t i = (rs->uref_l)-1; i>=0; --i)
+                {
+                    if ((rs->uref)[i].i <= best_pos)
+                    {
+                        fprintf(out, "%s\t", (rs->uref)[i].n);
+                        break;
+                    }
+                }
+                // if (best_pos == 0) best_pos = (rs->uref)[0].n;
+                //pos 1 base
+                fprintf(out, "%lu\t", (unsigned long)(best_pos+1));
+                //maq
+                /*
+                MAPping Quality. It equals −10 log10 Pr{mapping position is wrong}, rounded to the nearest
+                integer. A value 255 indicates that the mapping quality is not available.
+                */
+                
+                // int tot_n=0, m_n=0, t_n;
+                // for (size_t i = 0; i<(thecg.length); ++i)
+                // {
+                //     t_n = cigar_int_to_len(thecg.seq[i]);
+                //     tot_n += t_n;
+                //     if ( cigar_int_to_op(thecg.seq[i]) == 'M')
+                //         m_n += t_n;
+                // }
+                // if (tot_n == m_n)
+                //     fprintf(out, "255\t");
+                // else
+                //     fprintf(out, "%d\t", (int)((-10)*log10((tot_n - m_n)*1.0/tot_n)));
+                
+                // uint32_t mapq = -4.343 * log(1 - (double)abs(score - score2)/(double)score);
+                // mapq = (uint32_t) (mapq + 4.99);
+                // mapq = mapq < 254 ? mapq : 254;
+                // fprintf(out, "%d\t", mapq);
 
+                fprintf(out, "%d\t", 255);
+                //cigar
+                for (size_t i = 0; i<(thecg.length); ++i)
+                {
+                    fprintf(out, "%d%c", cigar_int_to_len(thecg.seq[i]), \
+                        cigar_int_to_op(thecg.seq[i]));
+                }
+                fprintf(out, "\t");
+                //ref next
+                //position next
+                //observed Template LENgth
+                fprintf(out, "*\t0\t0\t");
+                //segment SEQuence
+                if (best_if_reverse)    fprintf(out, "%s\t", re_read);
+                else fprintf(out, "%s\t", seq2->seq.s);
+                //QUAL 
+                if (seq2->qual.s) fprintf(out, "%s", seq2->qual.s);
+                else fprintf(out, "*");
+            
+                if (score) fprintf(out, "\tAS:i:%lu", (unsigned long)score);
+
+                int have_v = 0;
+                if (have_v)
+                {
+                    fprintf(out, "\tVP:A:pos_vtype");
+                }
+            //     if (a->score2 > 0) fprintf(stdout, "ZS:i:%d\n", a->score2);
+            //     else fprintf(stdout, "\n");
+
+                fprintf(out, "\n");
+            }
+            // if (re_read) free(re_read);
         }
         kseq_destroy(seq2);
     }
-    else
-    {
-        fprintf(stderr, "read file %s error\n", r_n);
-    }
+
     gzclose(fp2);
     
     
